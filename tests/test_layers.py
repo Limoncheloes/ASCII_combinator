@@ -1,6 +1,8 @@
 import numpy as np
 from PIL import Image
 from ascii_combinator.layers.brightness import BrightnessLayer
+from ascii_combinator.layers.sobel_x import SobelXLayer
+from ascii_combinator.layers.sobel_y import SobelYLayer
 
 
 def _make_image(pixels: list[list[int]]) -> Image.Image:
@@ -40,3 +42,30 @@ def test_brightness_intensity_range():
         for cells in row:
             for cell in cells:
                 assert 0.0 <= cell.intensity <= 1.0
+
+
+def test_sobel_x_detects_vertical_edge():
+    """Image with a sharp left/right boundary → SobelX emits | chars."""
+    pixels = [[0, 0, 255, 255]] * 4
+    img = _make_image(pixels)
+    layer = SobelXLayer(threshold=0.05)
+    result = layer.process(img, num_rows=2, num_cols=2)
+    all_chars = [cell.char for row in result for cells in row for cell in cells]
+    assert "|" in all_chars
+
+
+def test_sobel_y_detects_horizontal_edge():
+    """Image with a sharp top/bottom boundary → SobelY emits ─ chars."""
+    pixels = [[0, 0], [0, 0], [255, 255], [255, 255]]
+    img = _make_image(pixels)
+    layer = SobelYLayer(threshold=0.05)
+    result = layer.process(img, num_rows=2, num_cols=2)
+    all_chars = [cell.char for row in result for cells in row for cell in cells]
+    assert "─" in all_chars
+
+
+def test_sobel_uniform_image_no_edges():
+    """Uniform image → no edges detected."""
+    img = _make_image([[128, 128], [128, 128]])
+    assert SobelXLayer().process(img, 2, 2) == [[[], []], [[], []]]
+    assert SobelYLayer().process(img, 2, 2) == [[[], []], [[], []]]
