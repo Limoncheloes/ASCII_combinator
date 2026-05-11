@@ -3,6 +3,7 @@ from PIL import Image
 from ascii_combinator.layers.brightness import BrightnessLayer
 from ascii_combinator.layers.sobel_x import SobelXLayer
 from ascii_combinator.layers.sobel_y import SobelYLayer
+from ascii_combinator.layers.diagonal import DiagonalLayer
 
 
 def _make_image(pixels: list[list[int]]) -> Image.Image:
@@ -69,3 +70,17 @@ def test_sobel_uniform_image_no_edges():
     img = _make_image([[128, 128], [128, 128]])
     assert SobelXLayer().process(img, 2, 2) == [[[], []], [[], []]]
     assert SobelYLayer().process(img, 2, 2) == [[[], []], [[], []]]
+
+
+def test_diagonal_detects_slash():
+    """Image with a / diagonal edge emits / chars."""
+    arr = np.zeros((8, 8), dtype=np.uint8)
+    for i in range(8):
+        for j in range(8):
+            if j > i:
+                arr[i, j] = 255
+    img = Image.fromarray(arr, mode="L").convert("RGB")
+    layer = DiagonalLayer(threshold=0.05)
+    result = layer.process(img, num_rows=4, num_cols=4)
+    all_chars = [cell.char for row in result for cells in row for cell in cells]
+    assert "/" in all_chars or "\\" in all_chars  # diagonal detected
