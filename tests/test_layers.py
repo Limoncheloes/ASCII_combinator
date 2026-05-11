@@ -83,4 +83,4 @@ def test_diagonal_detects_slash():
     layer = DiagonalLayer(threshold=0.05)
     result = layer.process(img, num_rows=4, num_cols=4)
     all_chars = [cell.char for row in result for cells in row for cell in cells]
-    assert "/" in all_chars or "\\" in all_chars  # diagonal detected
+    assert "\\" in all_chars  # \ edge from top-left to bottom-right triangle boundary

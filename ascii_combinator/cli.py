@@ -41,7 +41,12 @@ def main():
     num_cols = args.width if args.width is not None else max(image.width // cell_w, 10)
     num_rows = max(1, int(num_cols * cell_w / cell_h * image.height / image.width))
 
-    layer_names = [n.strip() for n in args.layers.split(",") if n.strip() in LAYER_REGISTRY]
+    layer_names = [n.strip() for n in args.layers.split(",") if n.strip()]
+    unknown = [n for n in layer_names if n not in LAYER_REGISTRY]
+    if unknown:
+        parser.error(f"unknown layer(s): {', '.join(unknown)}. Choose from: {list(LAYER_REGISTRY)}")
+    if not layer_names:
+        parser.error("--layers cannot be empty")
     layers = [LAYER_REGISTRY[n](threshold=args.threshold) for n in layer_names]
 
     charmap_list = [layer.process(image, num_rows, num_cols) for layer in layers]

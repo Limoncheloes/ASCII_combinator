@@ -8,6 +8,5 @@ class MonochromeProfile(ColorProfile):
     def color_for(self, cell: CharCell) -> tuple[int, int, int, int]:
         # Near-black ink, opacity driven by signal intensity
         # Min alpha=35 so even weak signals are slightly visible
-        alpha = int(cell.intensity * 220) + 35
-        alpha = min(alpha, 255)
+        alpha = max(0, min(int(cell.intensity * 220) + 35, 255))
         return (20, 15, 10, alpha)
