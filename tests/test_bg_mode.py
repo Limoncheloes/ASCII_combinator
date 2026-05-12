@@ -17,3 +17,9 @@ def test_softbgconfig_custom():
     cfg = SoftBgConfig(opacity=0.1, chars=".")
     assert cfg.opacity == 0.1
     assert cfg.chars == "."
+
+
+def test_softbgconfig_opacity_not_clamped():
+    # Validation is delegated to the CLI layer; dataclass itself is permissive.
+    cfg = SoftBgConfig(opacity=1.5)
+    assert cfg.opacity == 1.5
