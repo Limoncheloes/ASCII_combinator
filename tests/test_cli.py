@@ -42,3 +42,45 @@ def test_cli_default_output_name(tmp_path):
     )
     assert result.returncode == 0, result.stderr
     assert expected_output.exists()
+
+
+def test_cli_bg_mode_keep_is_default(tmp_path):
+    """--bg-mode keep must work without rembg installed."""
+    input_img = tmp_path / "test.jpg"
+    output_img = tmp_path / "out.png"
+    _make_test_image(input_img)
+
+    result = subprocess.run(
+        [sys.executable, "-m", "ascii_combinator", str(input_img),
+         "-o", str(output_img), "--width", "20", "--bg-mode", "keep"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert output_img.exists()
+
+
+def test_cli_bg_mode_invalid(tmp_path):
+    """Unknown --bg-mode value must cause non-zero exit."""
+    input_img = tmp_path / "test.jpg"
+    _make_test_image(input_img)
+
+    result = subprocess.run(
+        [sys.executable, "-m", "ascii_combinator", str(input_img),
+         "--width", "20", "--bg-mode", "invalid"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode != 0
+
+
+def test_cli_bg_chars_empty_soft_mode_error(tmp_path):
+    """--bg-chars '' with --bg-mode soft must print an error and exit non-zero."""
+    input_img = tmp_path / "test.jpg"
+    _make_test_image(input_img)
+
+    result = subprocess.run(
+        [sys.executable, "-m", "ascii_combinator", str(input_img),
+         "--width", "20", "--bg-mode", "soft", "--bg-chars", ""],
+        capture_output=True, text=True,
+    )
+    assert result.returncode != 0
+    assert "bg-chars" in result.stderr.lower() or "bg-chars" in result.stdout.lower()

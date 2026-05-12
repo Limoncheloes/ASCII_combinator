@@ -1,4 +1,5 @@
 import argparse
+import sys
 from pathlib import Path
 from PIL import Image
 from ascii_combinator.layers.brightness import BrightnessLayer
@@ -8,6 +9,7 @@ from ascii_combinator.layers.diagonal import DiagonalLayer
 from ascii_combinator.compositor import Compositor
 from ascii_combinator.renderer import Renderer
 from ascii_combinator.profiles.monochrome import MonochromeProfile
+from ascii_combinator.bg_mode import BgMode, SoftBgConfig
 
 LAYER_REGISTRY = {
     "brightness": BrightnessLayer,
@@ -25,12 +27,16 @@ def main():
     parser = argparse.ArgumentParser(description="ASCII Combinator — multilayer image to ASCII PNG")
     parser.add_argument("input", type=Path, help="Input image path")
     parser.add_argument("-o", "--output", type=Path, default=None)
-    parser.add_argument("--width", type=int, default=None, help="Output width in characters")
+    parser.add_argument("--width", type=int, default=None)
     parser.add_argument("--profile", default="monochrome", choices=list(PROFILE_REGISTRY))
     parser.add_argument("--layers", default=",".join(LAYER_REGISTRY.keys()))
     parser.add_argument("--jitter", type=int, default=1)
     parser.add_argument("--threshold", type=float, default=0.15)
     parser.add_argument("--font-size", type=int, default=12)
+    parser.add_argument("--bg-mode", default="keep", choices=["keep", "remove", "soft"],
+                        dest="bg_mode")
+    parser.add_argument("--bg-opacity", type=float, default=0.25, dest="bg_opacity")
+    parser.add_argument("--bg-chars", type=str, default=".,", dest="bg_chars")
     args = parser.parse_args()
 
     image = Image.open(args.input)
@@ -47,10 +53,25 @@ def main():
         parser.error(f"unknown layer(s): {', '.join(unknown)}. Choose from: {list(LAYER_REGISTRY)}")
     if not layer_names:
         parser.error("--layers cannot be empty")
-    layers = [LAYER_REGISTRY[n](threshold=args.threshold) for n in layer_names]
 
+    bg_mode = BgMode(args.bg_mode)
+
+    if bg_mode == BgMode.SOFT and not args.bg_chars:
+        parser.error("--bg-chars cannot be empty when --bg-mode is soft")
+
+    mask = None
+    if bg_mode != BgMode.KEEP:
+        try:
+            from ascii_combinator.segmentation import Segmenter
+            mask = Segmenter().segment(image, num_rows, num_cols)
+        except ImportError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(1)
+
+    soft_cfg = SoftBgConfig(opacity=args.bg_opacity, chars=args.bg_chars) if bg_mode == BgMode.SOFT else None
+    layers = [LAYER_REGISTRY[n](threshold=args.threshold) for n in layer_names]
     charmap_list = [layer.process(image, num_rows, num_cols) for layer in layers]
-    charmap = Compositor().composite(charmap_list)
+    charmap = Compositor().composite(charmap_list, mask=mask, bg_mode=bg_mode, soft_cfg=soft_cfg)
 
     profile = PROFILE_REGISTRY[args.profile]()
     result = Renderer().render(charmap, profile, font_size=font_size, jitter=args.jitter)
