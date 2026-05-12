@@ -12,3 +12,7 @@ class BgMode(Enum):
 class SoftBgConfig:
     opacity: float = 0.25
     chars: str = ".,"
+
+    def __post_init__(self) -> None:
+        if not self.chars:
+            raise ValueError("SoftBgConfig.chars must not be empty")

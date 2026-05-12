@@ -1,5 +1,9 @@
+import pytest
+
 from ascii_combinator.types import CharCell, CharMap
 from ascii_combinator.compositor import Compositor
+from ascii_combinator.bg_mode import BgMode, SoftBgConfig
+from ascii_combinator.segmentation import SubjectMask
 
 
 def _make_charmap(rows: int, cols: int) -> CharMap:
@@ -37,15 +41,8 @@ def test_compositor_single_map():
 
 
 def test_compositor_raises_on_empty_input():
-    import pytest
-
     with pytest.raises(ValueError, match="No CharMaps"):
         Compositor().composite([])
-
-
-import pytest
-from ascii_combinator.bg_mode import BgMode, SoftBgConfig
-from ascii_combinator.segmentation import SubjectMask
 
 
 def _make_mask(rows: int, cols: int, default: bool) -> SubjectMask:
@@ -60,6 +57,7 @@ def test_compositor_keep_ignores_mask():
 
     result = Compositor().composite([m], mask=mask, bg_mode=BgMode.KEEP)
     assert len(result[0][0]) == 1
+    assert result[1][1] == []  # background empty cell also untouched
 
 
 def test_compositor_remove_clears_background():
@@ -111,3 +109,25 @@ def test_compositor_none_mask_unchanged():
 
     result = Compositor().composite([m], mask=None, bg_mode=BgMode.REMOVE)
     assert len(result[0][0]) == 1
+
+
+def test_compositor_mask_size_mismatch_raises():
+    """Mask size mismatch raises ValueError."""
+    m: CharMap = _make_charmap(2, 2)
+    mask = _make_mask(3, 3, False)  # wrong size
+    with pytest.raises(ValueError, match="does not match"):
+        Compositor().composite([m], mask=mask, bg_mode=BgMode.REMOVE)
+
+
+def test_compositor_soft_replaces_all_cells_in_background():
+    """SOFT replaces ALL cells in a background cell with a single soft cell."""
+    m: CharMap = _make_charmap(1, 1)
+    m[0][0].append(CharCell(char="#", intensity=0.9, layer_id="brightness"))
+    m[0][0].append(CharCell(char="|", intensity=0.7, layer_id="sobel_x"))
+    mask = _make_mask(1, 1, False)  # all background
+    cfg = SoftBgConfig(opacity=0.2, chars=".")
+
+    result = Compositor().composite([m], mask=mask, bg_mode=BgMode.SOFT, soft_cfg=cfg)
+    assert len(result[0][0]) == 1
+    assert result[0][0][0].char == "."
+    assert result[0][0][0].intensity == pytest.approx(0.2)

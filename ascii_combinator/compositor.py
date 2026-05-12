@@ -26,7 +26,14 @@ class Compositor:
         if mask is None or bg_mode == BgMode.KEEP:
             return result
 
-        soft = soft_cfg or SoftBgConfig()
+        if mask is not None and bg_mode != BgMode.KEEP:
+            if len(mask) != num_rows or (num_rows > 0 and len(mask[0]) != num_cols):
+                raise ValueError(
+                    f"Mask size {len(mask)}×{len(mask[0]) if mask else 0} "
+                    f"does not match CharMap {num_rows}×{num_cols}"
+                )
+
+        soft = None
         for r in range(num_rows):
             for c in range(num_cols):
                 if mask[r][c]:
@@ -34,6 +41,8 @@ class Compositor:
                 if bg_mode == BgMode.REMOVE:
                     result[r][c] = []
                 elif bg_mode == BgMode.SOFT and result[r][c]:
+                    if soft is None:
+                        soft = soft_cfg or SoftBgConfig()
                     result[r][c] = [
                         CharCell(char=soft.chars[0], intensity=soft.opacity, layer_id="background")
                     ]
