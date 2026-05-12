@@ -23,11 +23,21 @@ PROFILE_REGISTRY = {
 }
 
 
+def _opacity_type(v: str) -> float:
+    try:
+        f = float(v)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"invalid float value: '{v}'")
+    if not 0.0 <= f <= 1.0:
+        raise argparse.ArgumentTypeError("--bg-opacity must be between 0.0 and 1.0")
+    return f
+
+
 def main():
     parser = argparse.ArgumentParser(description="ASCII Combinator — multilayer image to ASCII PNG")
     parser.add_argument("input", type=Path, help="Input image path")
     parser.add_argument("-o", "--output", type=Path, default=None)
-    parser.add_argument("--width", type=int, default=None)
+    parser.add_argument("--width", type=int, default=None, help="Output width in characters")
     parser.add_argument("--profile", default="monochrome", choices=list(PROFILE_REGISTRY))
     parser.add_argument("--layers", default=",".join(LAYER_REGISTRY.keys()))
     parser.add_argument("--jitter", type=int, default=1)
@@ -35,7 +45,7 @@ def main():
     parser.add_argument("--font-size", type=int, default=12)
     parser.add_argument("--bg-mode", default="keep", choices=["keep", "remove", "soft"],
                         dest="bg_mode")
-    parser.add_argument("--bg-opacity", type=float, default=0.25, dest="bg_opacity")
+    parser.add_argument("--bg-opacity", type=_opacity_type, default=0.25, dest="bg_opacity")
     parser.add_argument("--bg-chars", type=str, default=".,", dest="bg_chars")
     args = parser.parse_args()
 
@@ -68,7 +78,10 @@ def main():
             print(f"Error: {exc}", file=sys.stderr)
             sys.exit(1)
 
-    soft_cfg = SoftBgConfig(opacity=args.bg_opacity, chars=args.bg_chars) if bg_mode == BgMode.SOFT else None
+    if bg_mode == BgMode.SOFT:
+        soft_cfg = SoftBgConfig(opacity=args.bg_opacity, chars=args.bg_chars)
+    else:
+        soft_cfg = None
     layers = [LAYER_REGISTRY[n](threshold=args.threshold) for n in layer_names]
     charmap_list = [layer.process(image, num_rows, num_cols) for layer in layers]
     charmap = Compositor().composite(charmap_list, mask=mask, bg_mode=bg_mode, soft_cfg=soft_cfg)

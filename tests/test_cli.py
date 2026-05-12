@@ -84,3 +84,29 @@ def test_cli_bg_chars_empty_soft_mode_error(tmp_path):
     )
     assert result.returncode != 0
     assert "bg-chars" in result.stderr.lower() or "bg-chars" in result.stdout.lower()
+
+
+def test_cli_bg_mode_remove_missing_rembg(tmp_path, monkeypatch):
+    """--bg-mode remove exits with error when rembg is not installed."""
+    import importlib
+    input_img = tmp_path / "test.jpg"
+    output_img = tmp_path / "out.png"
+    _make_test_image(input_img)
+
+    # Simulate rembg not installed
+    monkeypatch.setitem(sys.modules, "rembg", None)
+
+    import ascii_combinator.segmentation as seg_mod
+    importlib.reload(seg_mod)
+
+    result = subprocess.run(
+        [sys.executable, "-c",
+         "import sys; sys.modules['rembg'] = None; "
+         "import importlib; import ascii_combinator.segmentation as s; importlib.reload(s); "
+         f"sys.argv = ['ascii_combinator', '{input_img}', '-o', '{output_img}', "
+         f"'--width', '20', '--bg-mode', 'remove']; "
+         "from ascii_combinator.cli import main; main()"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode != 0
+    assert "rembg" in result.stderr.lower()
