@@ -4,7 +4,7 @@ from PIL import Image
 SubjectMask = list[list[bool]]
 
 try:
-    import rembg as rembg
+    import rembg
 except ImportError:
     rembg = None  # type: ignore
 
@@ -15,6 +15,11 @@ class Segmenter:
             raise ImportError(
                 "rembg is required for subject segmentation. "
                 "Install it with: pip install rembg"
+            )
+        if num_rows > image.height or num_cols > image.width:
+            raise ValueError(
+                f"Grid ({num_rows}×{num_cols}) exceeds image size "
+                f"({image.height}×{image.width})."
             )
         rgba = rembg.remove(image)
         alpha = np.array(rgba)[:, :, 3].astype(float) / 255.0

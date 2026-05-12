@@ -82,3 +82,10 @@ def test_segmenter_rembg_missing():
         else:
             sys.modules["rembg"] = original
         importlib.reload(seg_mod)
+
+
+def test_segmenter_grid_larger_than_image():
+    """Raises ValueError when grid exceeds image dimensions."""
+    with patch("ascii_combinator.segmentation.rembg"):
+        with pytest.raises(ValueError, match="exceeds image size"):
+            Segmenter().segment(Image.new("RGB", (4, 4)), num_rows=8, num_cols=8)
