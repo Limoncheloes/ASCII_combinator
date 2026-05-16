@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import shutil
 import subprocess
 import tempfile
@@ -7,7 +5,6 @@ import os
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 from PIL import Image
 
@@ -34,14 +31,14 @@ _PROFILE_REGISTRY = {
 
 @dataclass
 class VideoConfig:
-    width: Optional[int]
+    width: int | None
     profile_name: str
-    layer_names: list
+    layer_names: list[str]
     jitter: int
     threshold: float
     font_size: int
     bg_mode: BgMode
-    soft_cfg: Optional[SoftBgConfig]
+    soft_cfg: SoftBgConfig | None
 
 
 class FrameProcessor:
@@ -66,7 +63,7 @@ class FrameProcessor:
 
 
 class FrameExtractor:
-    def extract(self, video_path: Path, tmp_dir: Path, fps, frame_step) -> list:
+    def extract(self, video_path: Path, tmp_dir: Path, fps: float | None, frame_step: int | None) -> list[Path]:
         raise NotImplementedError
 
 
@@ -84,5 +81,16 @@ def _worker(args):
 
 
 class VideoProcessor:
-    def process(self, video_path, output, config, fps, frame_step, workers, preview, make_gif, gif_fps):
+    def process(
+        self,
+        video_path: Path,
+        output: Path,
+        config: VideoConfig,
+        fps: float,
+        frame_step: int | None,
+        workers: int,
+        preview: bool,
+        make_gif: bool,
+        gif_fps: float,
+    ) -> None:
         raise NotImplementedError
