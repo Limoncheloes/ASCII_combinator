@@ -169,3 +169,96 @@ def test_assembler_gif_raises_on_palettegen_failure(tmp_path):
     with patch("ascii_combinator.video.subprocess.run", return_value=_stub_ffmpeg_run(returncode=1)):
         with pytest.raises(RuntimeError, match="palettegen failed"):
             VideoAssembler().assemble_gif(tmp_path / "in.mp4", tmp_path / "out.gif", fps=10.0)
+
+
+def test_video_processor_preview_mode(tmp_path):
+    """Preview mode processes only the first frame and saves a PNG."""
+    frames_in = [_make_png(tmp_path / f"frame_{i:06d}.png") for i in range(1, 4)]
+    output = tmp_path / "out.mp4"
+
+    processed = []
+
+    def fake_process(frame_in, frame_out, config):
+        processed.append(frame_in)
+        Image.new("RGB", (10, 10)).save(frame_out)
+        return frame_out
+
+    with patch.object(FrameProcessor, "process", side_effect=fake_process), \
+         patch.object(FrameExtractor, "extract", return_value=frames_in), \
+         patch.object(VideoAssembler, "assemble_mp4"), \
+         patch.object(VideoAssembler, "assemble_gif"):
+        VideoProcessor().process(
+            video_path=Path("in.mp4"),
+            output=output,
+            config=_default_config(),
+            fps=10.0,
+            frame_step=None,
+            workers=1,
+            preview=True,
+            make_gif=False,
+            gif_fps=10.0,
+        )
+
+    assert len(processed) == 1
+    assert processed[0] == frames_in[0]
+    preview_png = tmp_path / "out_preview.png"
+    assert preview_png.exists()
+
+
+def test_video_processor_calls_assembler(tmp_path):
+    """Normal mode calls assemble_mp4 after processing all frames."""
+    frames_in = [_make_png(tmp_path / f"frame_{i:06d}.png") for i in range(1, 3)]
+    output = tmp_path / "out.mp4"
+
+    def fake_process(frame_in, frame_out, config):
+        Image.new("RGB", (10, 10)).save(frame_out)
+        return frame_out
+
+    with patch.object(FrameProcessor, "process", side_effect=fake_process), \
+         patch.object(FrameExtractor, "extract", return_value=frames_in), \
+         patch.object(VideoAssembler, "assemble_mp4") as mock_mp4, \
+         patch.object(VideoAssembler, "assemble_gif") as mock_gif:
+        VideoProcessor().process(
+            video_path=Path("in.mp4"),
+            output=output,
+            config=_default_config(),
+            fps=10.0,
+            frame_step=None,
+            workers=1,
+            preview=False,
+            make_gif=False,
+            gif_fps=10.0,
+        )
+
+    mock_mp4.assert_called_once()
+    mock_gif.assert_not_called()
+
+
+def test_video_processor_gif_flag(tmp_path):
+    """make_gif=True calls assemble_gif with gif_fps=5.0."""
+    frames_in = [_make_png(tmp_path / f"frame_{i:06d}.png") for i in range(1, 3)]
+    output = tmp_path / "out.mp4"
+
+    def fake_process(frame_in, frame_out, config):
+        Image.new("RGB", (10, 10)).save(frame_out)
+        return frame_out
+
+    with patch.object(FrameProcessor, "process", side_effect=fake_process), \
+         patch.object(FrameExtractor, "extract", return_value=frames_in), \
+         patch.object(VideoAssembler, "assemble_mp4"), \
+         patch.object(VideoAssembler, "assemble_gif") as mock_gif:
+        VideoProcessor().process(
+            video_path=Path("in.mp4"),
+            output=output,
+            config=_default_config(),
+            fps=10.0,
+            frame_step=None,
+            workers=1,
+            preview=False,
+            make_gif=True,
+            gif_fps=5.0,
+        )
+
+    mock_gif.assert_called_once()
+    # assemble_gif(mp4_path, gif_output, gif_fps) — third positional arg is gif_fps
+    assert mock_gif.call_args[0][2] == 5.0

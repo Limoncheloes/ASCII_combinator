@@ -4,6 +4,7 @@ import tempfile
 import os
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
+from tqdm import tqdm
 from pathlib import Path
 
 from PIL import Image
@@ -153,4 +154,36 @@ class VideoProcessor:
         make_gif: bool,
         gif_fps: float,
     ) -> None:
-        raise NotImplementedError
+        extractor = FrameExtractor()
+        assembler = VideoAssembler()
+
+        with tempfile.TemporaryDirectory() as tmp_in_s, \
+             tempfile.TemporaryDirectory() as tmp_out_s:
+            tmp_in = Path(tmp_in_s)
+            tmp_out = Path(tmp_out_s)
+
+            frames_in = extractor.extract(video_path, tmp_in, fps, frame_step)
+
+            if preview:
+                preview_out = output.parent / (output.stem + "_preview.png")
+                FrameProcessor().process(frames_in[0], preview_out, config)
+                print(f"Preview saved: {preview_out}")
+                return
+
+            frames_out = [tmp_out / f.name for f in frames_in]
+            job_args = list(zip(frames_in, frames_out, [config] * len(frames_in)))
+
+            with ProcessPoolExecutor(max_workers=workers) as executor:
+                list(tqdm(
+                    executor.map(_worker, job_args),
+                    total=len(job_args),
+                    desc="Rendering frames",
+                ))
+
+            assembler.assemble_mp4(tmp_out, output, fps)
+            print(f"Saved: {output}")
+
+            if make_gif:
+                gif_output = output.with_suffix(".gif")
+                assembler.assemble_gif(output, gif_output, gif_fps)
+                print(f"Saved: {gif_output}")
