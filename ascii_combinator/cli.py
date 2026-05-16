@@ -121,6 +121,9 @@ def _run_video(args: argparse.Namespace, parser: argparse.ArgumentParser) -> Non
     if BgMode(args.bg_mode) == BgMode.REMOVE:
         parser.error("--bg-mode remove is not supported in video mode (too slow)")
 
+    if args.frame_step is not None and args.frame_step < 1:
+        parser.error("--frame-step must be >= 1")
+
     layer_names, bg_mode, soft_cfg = _parse_shared(args, parser)
 
     effective_fps = args.fps if args.fps is not None else 10.0
