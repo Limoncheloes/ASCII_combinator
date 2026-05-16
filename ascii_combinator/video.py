@@ -63,8 +63,42 @@ class FrameProcessor:
 
 
 class FrameExtractor:
-    def extract(self, video_path: Path, tmp_dir: Path, fps: float | None, frame_step: int | None) -> list[Path]:
-        raise NotImplementedError
+    def extract(
+        self,
+        video_path: Path,
+        tmp_dir: Path,
+        fps: float | None,
+        frame_step: int | None,
+    ) -> list[Path]:
+        if shutil.which("ffmpeg") is None:
+            raise FileNotFoundError(
+                "ffmpeg not found. Install with: apt install ffmpeg"
+            )
+
+        output_pattern = str(tmp_dir / "frame_%06d.png")
+
+        if frame_step is not None:
+            vf = f"select='not(mod(n\\,{frame_step}))',setpts=N/FRAME_RATE/TB"
+            cmd = [
+                "ffmpeg", "-i", str(video_path),
+                "-vf", vf, "-vsync", "vfr",
+                output_pattern,
+            ]
+        else:
+            cmd = [
+                "ffmpeg", "-i", str(video_path),
+                "-vf", f"fps={fps}",
+                output_pattern,
+            ]
+
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(f"ffmpeg failed: {result.stderr}")
+
+        frames = sorted(tmp_dir.glob("frame_*.png"))
+        if not frames:
+            raise RuntimeError(f"No frames extracted from {video_path}")
+        return frames
 
 
 class VideoAssembler:

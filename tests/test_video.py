@@ -57,3 +57,74 @@ def test_video_config_is_picklable():
     import pickle
     cfg = _default_config()
     assert pickle.loads(pickle.dumps(cfg)) == cfg
+
+
+def _stub_ffmpeg_run(returncode: int = 0):
+    return MagicMock(returncode=returncode, stderr="fake error")
+
+
+def test_frame_extractor_fps_filter(tmp_path):
+    """`fps` mode passes -vf fps=N to ffmpeg."""
+    (tmp_path / "frame_000001.png").touch()  # fake extracted frame
+
+    with patch("ascii_combinator.video.shutil.which", return_value="/usr/bin/ffmpeg"), \
+         patch("ascii_combinator.video.subprocess.run", return_value=_stub_ffmpeg_run()) as mock_run:
+        FrameExtractor().extract(Path("input.mp4"), tmp_path, fps=10.0, frame_step=None)
+
+    args = mock_run.call_args[0][0]
+    assert "-vf" in args
+    vf_value = args[args.index("-vf") + 1]
+    assert "fps=10.0" in vf_value
+
+
+def test_frame_extractor_step_filter(tmp_path):
+    """`frame_step` mode uses select filter, not fps."""
+    (tmp_path / "frame_000001.png").touch()
+
+    with patch("ascii_combinator.video.shutil.which", return_value="/usr/bin/ffmpeg"), \
+         patch("ascii_combinator.video.subprocess.run", return_value=_stub_ffmpeg_run()) as mock_run:
+        FrameExtractor().extract(Path("input.mp4"), tmp_path, fps=10.0, frame_step=3)
+
+    args = mock_run.call_args[0][0]
+    assert "-vf" in args
+    vf_value = args[args.index("-vf") + 1]
+    assert "select" in vf_value
+    assert "3" in vf_value
+    assert "fps=" not in vf_value
+
+
+def test_frame_extractor_no_ffmpeg(tmp_path):
+    """Missing ffmpeg binary raises FileNotFoundError."""
+    with patch("ascii_combinator.video.shutil.which", return_value=None):
+        with pytest.raises(FileNotFoundError, match="ffmpeg not found"):
+            FrameExtractor().extract(Path("input.mp4"), tmp_path, fps=10.0, frame_step=None)
+
+
+def test_frame_extractor_ffmpeg_failure(tmp_path):
+    """ffmpeg non-zero exit raises RuntimeError with stderr."""
+    with patch("ascii_combinator.video.shutil.which", return_value="/usr/bin/ffmpeg"), \
+         patch("ascii_combinator.video.subprocess.run", return_value=_stub_ffmpeg_run(returncode=1)):
+        with pytest.raises(RuntimeError, match="ffmpeg failed"):
+            FrameExtractor().extract(Path("input.mp4"), tmp_path, fps=10.0, frame_step=None)
+
+
+def test_frame_extractor_no_frames(tmp_path):
+    """Empty output directory raises RuntimeError."""
+    with patch("ascii_combinator.video.shutil.which", return_value="/usr/bin/ffmpeg"), \
+         patch("ascii_combinator.video.subprocess.run", return_value=_stub_ffmpeg_run()):
+        with pytest.raises(RuntimeError, match="No frames extracted"):
+            FrameExtractor().extract(Path("input.mp4"), tmp_path, fps=10.0, frame_step=None)
+
+
+def test_frame_extractor_returns_sorted_paths(tmp_path):
+    """Returns sorted list of extracted frame paths."""
+    for i in [3, 1, 2]:
+        (tmp_path / f"frame_{i:06d}.png").touch()
+
+    with patch("ascii_combinator.video.shutil.which", return_value="/usr/bin/ffmpeg"), \
+         patch("ascii_combinator.video.subprocess.run", return_value=_stub_ffmpeg_run()):
+        frames = FrameExtractor().extract(Path("input.mp4"), tmp_path, fps=5.0, frame_step=None)
+
+    assert [f.name for f in frames] == [
+        "frame_000001.png", "frame_000002.png", "frame_000003.png"
+    ]
