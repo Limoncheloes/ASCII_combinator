@@ -103,10 +103,36 @@ class FrameExtractor:
 
 class VideoAssembler:
     def assemble_mp4(self, frames_dir: Path, output: Path, fps: float) -> None:
-        raise NotImplementedError
+        pattern = str(frames_dir / "frame_%06d.png")
+        cmd = [
+            "ffmpeg", "-y",
+            "-framerate", str(fps),
+            "-i", pattern,
+            "-c:v", "libx264",
+            "-pix_fmt", "yuv420p",
+            str(output),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(f"ffmpeg failed assembling MP4: {result.stderr}")
 
     def assemble_gif(self, mp4_path: Path, output: Path, fps: float) -> None:
-        raise NotImplementedError
+        palette = mp4_path.parent / "_palette.png"
+        r1 = subprocess.run(
+            ["ffmpeg", "-y", "-i", str(mp4_path),
+             "-vf", f"fps={fps},palettegen", str(palette)],
+            capture_output=True, text=True,
+        )
+        if r1.returncode != 0:
+            raise RuntimeError(f"ffmpeg palettegen failed: {r1.stderr}")
+
+        r2 = subprocess.run(
+            ["ffmpeg", "-y", "-i", str(mp4_path), "-i", str(palette),
+             "-vf", f"fps={fps},paletteuse", str(output)],
+            capture_output=True, text=True,
+        )
+        if r2.returncode != 0:
+            raise RuntimeError(f"ffmpeg GIF assembly failed: {r2.stderr}")
 
 
 def _worker(args):

@@ -128,3 +128,44 @@ def test_frame_extractor_returns_sorted_paths(tmp_path):
     assert [f.name for f in frames] == [
         "frame_000001.png", "frame_000002.png", "frame_000003.png"
     ]
+
+
+def test_assembler_mp4_calls_ffmpeg(tmp_path):
+    """assemble_mp4 invokes ffmpeg with libx264 and yuv420p."""
+    with patch("ascii_combinator.video.subprocess.run", return_value=_stub_ffmpeg_run()) as mock_run:
+        VideoAssembler().assemble_mp4(tmp_path, tmp_path / "out.mp4", fps=10.0)
+
+    args = mock_run.call_args[0][0]
+    assert "ffmpeg" in args
+    assert "-c:v" in args
+    assert "libx264" in args[args.index("-c:v") + 1]
+    assert "-pix_fmt" in args
+    assert "yuv420p" in args[args.index("-pix_fmt") + 1]
+    assert str(tmp_path / "out.mp4") in args
+
+
+def test_assembler_mp4_raises_on_failure(tmp_path):
+    """assemble_mp4 raises RuntimeError when ffmpeg fails."""
+    with patch("ascii_combinator.video.subprocess.run", return_value=_stub_ffmpeg_run(returncode=1)):
+        with pytest.raises(RuntimeError, match="ffmpeg failed assembling MP4"):
+            VideoAssembler().assemble_mp4(tmp_path, tmp_path / "out.mp4", fps=10.0)
+
+
+def test_assembler_gif_calls_ffmpeg_twice(tmp_path):
+    """assemble_gif calls ffmpeg exactly twice (palettegen + paletteuse)."""
+    with patch("ascii_combinator.video.subprocess.run", return_value=_stub_ffmpeg_run()) as mock_run:
+        VideoAssembler().assemble_gif(tmp_path / "in.mp4", tmp_path / "out.gif", fps=10.0)
+
+    assert mock_run.call_count == 2
+    first_args = mock_run.call_args_list[0][0][0]
+    second_args = mock_run.call_args_list[1][0][0]
+    assert "palettegen" in " ".join(first_args)
+    assert "paletteuse" in " ".join(second_args)
+    assert str(tmp_path / "out.gif") in second_args
+
+
+def test_assembler_gif_raises_on_palettegen_failure(tmp_path):
+    """assemble_gif raises RuntimeError if palettegen step fails."""
+    with patch("ascii_combinator.video.subprocess.run", return_value=_stub_ffmpeg_run(returncode=1)):
+        with pytest.raises(RuntimeError, match="palettegen failed"):
+            VideoAssembler().assemble_gif(tmp_path / "in.mp4", tmp_path / "out.gif", fps=10.0)
