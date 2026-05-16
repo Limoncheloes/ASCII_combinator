@@ -103,3 +103,18 @@ def test_cli_bg_mode_remove_missing_rembg(tmp_path):
     )
     assert result.returncode != 0
     assert "rembg" in result.stderr.lower()
+
+
+def test_cli_image_subcommand_explicit(tmp_path):
+    """Explicit `image` subcommand works like the bare invocation."""
+    input_img = tmp_path / "test.jpg"
+    output_img = tmp_path / "out.png"
+    _make_test_image(input_img)
+
+    result = subprocess.run(
+        [sys.executable, "-m", "ascii_combinator", "image", str(input_img),
+         "-o", str(output_img), "--width", "20"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert output_img.exists()

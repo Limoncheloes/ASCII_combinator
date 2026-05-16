@@ -262,3 +262,60 @@ def test_video_processor_gif_flag(tmp_path):
     mock_gif.assert_called_once()
     # assemble_gif(mp4_path, gif_output, gif_fps) — third positional arg is gif_fps
     assert mock_gif.call_args[0][2] == 5.0
+
+
+def _make_test_video(path: Path) -> Path:
+    """Create a tiny 1-second test video using ffmpeg."""
+    img_path = path.parent / "_tmp_frame.png"
+    arr = np.zeros((32, 32, 3), dtype=np.uint8)
+    arr[16, :, :] = 100
+    Image.fromarray(arr).save(img_path)
+    _subprocess.run(
+        ["ffmpeg", "-y", "-loop", "1", "-i", str(img_path),
+         "-t", "0.3", "-r", "5", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+         str(path)],
+        capture_output=True, check=True,
+    )
+    img_path.unlink(missing_ok=True)
+    return path
+
+
+def test_video_cli_preview(tmp_path):
+    """`video --preview` renders first frame as PNG and exits 0."""
+    video = _make_test_video(tmp_path / "test.mp4")
+    output = tmp_path / "out.mp4"
+
+    result = _subprocess.run(
+        [sys.executable, "-m", "ascii_combinator", "video", str(video),
+         "-o", str(output), "--width", "20", "--preview"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    preview = tmp_path / "out_preview.png"
+    assert preview.exists()
+
+
+def test_video_cli_invalid_bg_mode(tmp_path):
+    """`--bg-mode remove` is rejected in video mode."""
+    video = _make_test_video(tmp_path / "test.mp4")
+
+    result = _subprocess.run(
+        [sys.executable, "-m", "ascii_combinator", "video", str(video),
+         "--width", "20", "--bg-mode", "remove"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode != 0
+
+
+def test_video_cli_fps_and_step_both_warn(tmp_path):
+    """When both --fps and --frame-step are given, frame-step wins and a warning is printed to stderr."""
+    video = _make_test_video(tmp_path / "test.mp4")
+    output = tmp_path / "out.mp4"
+
+    result = _subprocess.run(
+        [sys.executable, "-m", "ascii_combinator", "video", str(video),
+         "-o", str(output), "--width", "20", "--fps", "5", "--frame-step", "2", "--preview"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "frame-step" in result.stderr.lower()
