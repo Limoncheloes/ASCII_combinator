@@ -106,12 +106,14 @@ def create_app(testing: bool = False) -> Flask:
         if not layer_names:
             return jsonify({"error": "Выбери хотя бы один слой"}), 400
 
-        stem = Path(f.filename).stem if f.filename else "upload"
+        # Sanitize filename to prevent path traversal
+        safe_name = Path(f.filename).name if f.filename else "upload"
+        stem = Path(safe_name).stem or "upload"
         out_dir = RESULTS_DIR / stem
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        # Save source file
-        src_dest = out_dir / (f.filename or "source")
+        # Save source file with sanitized name
+        src_dest = out_dir / safe_name
         if not src_dest.exists():
             f.stream.seek(0)
             src_dest.write_bytes(f.stream.read())
