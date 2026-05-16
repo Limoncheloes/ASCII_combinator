@@ -13,7 +13,6 @@ from ascii_combinator.layers.sobel_x import SobelXLayer
 from ascii_combinator.layers.sobel_y import SobelYLayer
 from ascii_combinator.profiles.monochrome import MonochromeProfile
 from ascii_combinator.renderer import Renderer
-from ascii_combinator.video import VideoConfig, VideoProcessor
 
 LAYER_REGISTRY = {
     "brightness": BrightnessLayer,
@@ -53,7 +52,7 @@ def _add_shared_args(parser: argparse.ArgumentParser) -> None:
 
 
 def _add_video_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--fps", type=float, default=10.0,
+    parser.add_argument("--fps", type=float, default=None,
                         help="Frames per second to extract (and output fps)")
     parser.add_argument("--frame-step", type=int, default=None, dest="frame_step",
                         help="Extract every N-th frame (overrides --fps for extraction)")
@@ -117,12 +116,16 @@ def _run_image(args: argparse.Namespace, parser: argparse.ArgumentParser) -> Non
 
 
 def _run_video(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    from ascii_combinator.video import VideoConfig, VideoProcessor
+
     if BgMode(args.bg_mode) == BgMode.REMOVE:
         parser.error("--bg-mode remove is not supported in video mode (too slow)")
 
     layer_names, bg_mode, soft_cfg = _parse_shared(args, parser)
 
-    if args.frame_step is not None and args.fps != 10.0:
+    effective_fps = args.fps if args.fps is not None else 10.0
+
+    if args.frame_step is not None and args.fps is not None:
         print(
             "Warning: both --frame-step and --fps specified; "
             "--frame-step takes priority for extraction, --fps used for output.",
@@ -146,7 +149,7 @@ def _run_video(args: argparse.Namespace, parser: argparse.ArgumentParser) -> Non
         video_path=args.input,
         output=output,
         config=config,
-        fps=args.fps,
+        fps=effective_fps,
         frame_step=args.frame_step,
         workers=args.workers,
         preview=args.preview,
@@ -157,7 +160,7 @@ def _run_video(args: argparse.Namespace, parser: argparse.ArgumentParser) -> Non
 
 def main() -> None:
     # Backwards compatibility: if first arg is not a known subcommand, treat as `image`
-    if len(sys.argv) > 1 and sys.argv[1] not in ("video", "image", "-h", "--help"):
+    if len(sys.argv) > 1 and sys.argv[1] not in ("video", "image") and not sys.argv[1].startswith("-"):
         sys.argv.insert(1, "image")
 
     parser = argparse.ArgumentParser(description="ASCII Combinator — multilayer image/video to ASCII")
