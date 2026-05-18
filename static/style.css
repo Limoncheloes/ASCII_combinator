@@ -27,8 +27,8 @@ body {
 
 /* LEFT PANEL */
 #panel {
-  width: 280px;
-  min-width: 280px;
+  width: 340px;
+  min-width: 340px;
   background: var(--panel-bg);
   border-right: 1px solid var(--border);
   display: flex;

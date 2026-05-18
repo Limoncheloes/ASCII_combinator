@@ -67,7 +67,13 @@ def _convert_image(image: Image.Image, params: dict) -> Image.Image:
         SoftBgConfig(opacity=params.get("bg_opacity", 0.25), chars=params.get("bg_chars", ".,"))
         if bg_mode == BgMode.SOFT else None
     )
-    charmap = Compositor().composite(charmap_list, mask=None, bg_mode=bg_mode, soft_cfg=soft_cfg)
+
+    mask = None
+    if bg_mode == BgMode.REMOVE:
+        from ascii_combinator.segmentation import Segmenter
+        mask = Segmenter().segment(image, num_rows, num_cols)
+
+    charmap = Compositor().composite(charmap_list, mask=mask, bg_mode=bg_mode, soft_cfg=soft_cfg)
 
     profile_name = params.get("profile", "monochrome")
     profile = _PROFILE_REGISTRY.get(profile_name, MonochromeProfile)()
