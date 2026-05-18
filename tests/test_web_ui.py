@@ -1,5 +1,6 @@
 import io
 import json
+import subprocess as _subprocess
 from pathlib import Path
 from unittest.mock import patch
 
@@ -107,3 +108,51 @@ def test_serve_result_existing_file(client, tmp_path):
     assert resp.content_type.startswith("image/")
     test_file.unlink()
     stem_dir.rmdir()
+
+
+def _make_test_mp4(path) -> bytes:
+    """Create a tiny 0.3s mp4 and return its bytes."""
+    from pathlib import Path
+    img_path = Path(path).parent / "_f.png"
+    arr = np.zeros((32, 32, 3), dtype=np.uint8)
+    arr[16, :, :] = 100
+    Image.fromarray(arr).save(img_path)
+    _subprocess.run(
+        ["ffmpeg", "-y", "-loop", "1", "-i", str(img_path),
+         "-t", "0.3", "-r", "5", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+         str(path)],
+        capture_output=True, check=True,
+    )
+    img_path.unlink(missing_ok=True)
+    return Path(path).read_bytes()
+
+
+_VIDEO_PARAMS = {
+    "width": 20, "font_size": 8, "jitter": 0, "threshold": 0.15,
+    "layers": ["brightness"], "bg_mode": "keep",
+    "bg_opacity": 0.25, "bg_chars": ".,", "profile": "monochrome",
+    "fps": 5, "workers": 1, "frame_step": None,
+    "preview": False, "gif": False, "gif_fps": 5,
+}
+
+
+def test_convert_video_returns_task_id(client, tmp_path):
+    mp4 = tmp_path / "test.mp4"
+    _make_test_mp4(mp4)
+    data = {
+        "file": (io.BytesIO(mp4.read_bytes()), "test.mp4", "video/mp4"),
+        "params": json.dumps(_VIDEO_PARAMS),
+        "mode": "video",
+    }
+    resp = client.post("/api/convert", data=data, content_type="multipart/form-data")
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert "task_id" in body
+    assert len(body["task_id"]) == 32  # uuid4 hex
+
+
+def test_progress_unknown_task_returns_done(client):
+    # Unknown task_id should stream a done=true event (graceful)
+    resp = client.get("/api/progress/unknowntask123")
+    assert resp.status_code == 200
+    assert b"data:" in resp.data

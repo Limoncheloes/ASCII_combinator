@@ -20,6 +20,7 @@ from ascii_combinator.layers.sobel_x import SobelXLayer
 from ascii_combinator.layers.sobel_y import SobelYLayer
 from ascii_combinator.profiles.monochrome import MonochromeProfile
 from ascii_combinator.renderer import Renderer
+from ascii_combinator.video import FrameExtractor, FrameProcessor, VideoAssembler, VideoConfig
 
 RESULTS_DIR = Path(__file__).parent / "results"
 
@@ -74,6 +75,98 @@ def _convert_image(image: Image.Image, params: dict) -> Image.Image:
         font_size=font_size,
         jitter=params.get("jitter", 1),
     )
+
+
+def _run_video_task(
+    task_id: str,
+    video_src: Path,
+    out_dir: Path,
+    params: dict,
+) -> None:
+    """Background thread: extract frames, render, assemble. Updates _progress."""
+    try:
+        extractor = FrameExtractor()
+        assembler = VideoAssembler()
+        processor = FrameProcessor()
+        fps = float(params.get("fps") or 10.0)
+        frame_step = params.get("frame_step")
+        if frame_step:
+            frame_step = int(frame_step)
+
+        config = VideoConfig(
+            width=params.get("width"),
+            profile_name=params.get("profile", "monochrome"),
+            layer_names=params.get("layers", ["brightness"]),
+            jitter=int(params.get("jitter", 1)),
+            threshold=float(params.get("threshold", 0.15)),
+            font_size=int(params.get("font_size", 12)),
+            bg_mode=BgMode(params.get("bg_mode", "keep")),
+            soft_cfg=(
+                SoftBgConfig(
+                    opacity=float(params.get("bg_opacity", 0.25)),
+                    chars=params.get("bg_chars", ".,"),
+                )
+                if params.get("bg_mode") == "soft" else None
+            ),
+        )
+
+        with tempfile.TemporaryDirectory() as tmp_in_s, \
+             tempfile.TemporaryDirectory() as tmp_out_s:
+            tmp_in = Path(tmp_in_s)
+            tmp_out = Path(tmp_out_s)
+
+            frames_in = extractor.extract(video_src, tmp_in, fps, frame_step)
+            total = len(frames_in)
+            _progress[task_id].update({"total": total})
+
+            # Preview mode: render only first frame as PNG and return early
+            if params.get("preview"):
+                preview_out = out_dir / "preview.png"
+                processor.process(frames_in[0], preview_out, config)
+                _progress[task_id].update({
+                    "done": True,
+                    "preview_url": "/results/" + str(preview_out.relative_to(RESULTS_DIR)),
+                    "result_url": None,
+                })
+                return
+
+            # Render frames sequentially for fine-grained progress
+            frames_out = []
+            for i, frame_in in enumerate(frames_in):
+                frame_out = tmp_out / frame_in.name
+                processor.process(frame_in, frame_out, config)
+                frames_out.append(frame_out)
+                _progress[task_id]["frame"] = i + 1
+                if i == 0:
+                    # First frame -> preview PNG saved to out_dir
+                    preview_out = out_dir / "preview.png"
+                    shutil.copy(frame_out, preview_out)
+                    _progress[task_id]["preview_url"] = (
+                        "/results/" + str(preview_out.relative_to(RESULTS_DIR))
+                    )
+
+            # Assemble MP4
+            w = params.get("width", 80)
+            f = params.get("font_size", 12)
+            mp4_out = out_dir / f"result_w{w}_f{f}.mp4"
+            assembler.assemble_mp4(tmp_out, mp4_out, fps)
+
+            gif_url = None
+            if params.get("gif"):
+                gif_out = mp4_out.with_suffix(".gif")
+                gif_fps = float(params.get("gif_fps") or fps)
+                assembler.assemble_gif(mp4_out, gif_out, gif_fps)
+                gif_url = "/results/" + str(gif_out.relative_to(RESULTS_DIR))
+
+            mp4_url = "/results/" + str(mp4_out.relative_to(RESULTS_DIR))
+            _progress[task_id].update({
+                "done": True,
+                "result_url": mp4_url,
+                "gif_url": gif_url,
+            })
+
+    except Exception as e:
+        _progress[task_id] = {"done": True, "error": str(e)}
 
 
 def create_app(testing: bool = False) -> Flask:
@@ -131,13 +224,35 @@ def create_app(testing: bool = False) -> Flask:
             result_url = "/results/" + str(out_path.relative_to(RESULTS_DIR))
             return jsonify({"result_url": result_url, "result_path": str(out_path)})
 
-        # Video: handled in Task 6
-        task_id = uuid.uuid4().hex
-        return jsonify({"task_id": task_id, "result_path": str(out_dir)})
+        if mode == "video":
+            task_id = uuid.uuid4().hex
+            _progress[task_id] = {"frame": 0, "total": 0, "done": False}
+            w = params.get("width", 80)
+            f_size = params.get("font_size", 12)
+            mp4_name = f"result_w{w}_f{f_size}.mp4"
+            result_path = str(out_dir / mp4_name)
+            src_path = out_dir / safe_name
+            t = threading.Thread(
+                target=_run_video_task,
+                args=(task_id, src_path, out_dir, params),
+                daemon=True,
+            )
+            t.start()
+            return jsonify({"task_id": task_id, "result_path": result_path})
 
     @app.get("/api/progress/<task_id>")
     def api_progress(task_id: str):
-        return jsonify({"error": "not implemented"}), 501
+        import time
+
+        def generate():
+            while True:
+                info = _progress.get(task_id, {"done": True, "error": "Unknown task"})
+                yield f"data: {json.dumps(info)}\n\n"
+                if info.get("done"):
+                    break
+                time.sleep(0.5)
+
+        return app.response_class(generate(), mimetype="text/event-stream")
 
     @app.post("/api/open-folder")
     def api_open_folder():
