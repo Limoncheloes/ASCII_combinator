@@ -143,7 +143,8 @@ def create_app(testing: bool = False) -> Flask:
     def api_open_folder():
         data = request.get_json(silent=True) or {}
         path = data.get("path", "")
-        folder = str(Path(path).parent if Path(path).is_file() else path)
+        p = Path(path)
+        folder = str(p.parent if p.suffix else path)
         system = platform.system()
         if system == "Darwin":
             subprocess.Popen(["open", folder])

@@ -83,7 +83,7 @@ def test_convert_image_no_layers_returns_400(client):
 
 
 def test_open_folder_calls_platform_command(client):
-    with patch("subprocess.Popen") as mock_popen:
+    with patch("web_ui.subprocess.Popen") as mock_popen:
         resp = client.post(
             "/api/open-folder",
             data=json.dumps({"path": "/tmp/results/horse/result.png"}),
@@ -91,6 +91,8 @@ def test_open_folder_calls_platform_command(client):
         )
     assert resp.status_code == 200
     mock_popen.assert_called_once()
+    args, _ = mock_popen.call_args
+    assert "/tmp/results/horse" in args[0]
 
 
 def test_serve_result_existing_file(client, tmp_path):
