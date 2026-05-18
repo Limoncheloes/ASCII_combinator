@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>ASCII Combinator</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- LEFT PANEL -->
+    <aside id="panel">
+
+      <!-- Drop zone -->
+      <div id="drop-zone">
+        <div id="drop-icon">⬆</div>
+        <div id="drop-label">Перетащи файл или кликни</div>
+        <div id="drop-meta"></div>
+        <input type="file" id="file-input" accept="image/*,video/*" hidden>
+      </div>
+
+      <!-- Shared controls -->
+      <section class="controls-group" id="shared-controls">
+        <div class="group-label">Основные</div>
+
+        <label class="slider-row">
+          <span>width</span>
+          <input type="range" id="ctrl-width" min="10" max="300" step="10" value="80">
+          <span class="val" id="val-width">80</span>
+        </label>
+
+        <label class="slider-row">
+          <span>font-size</span>
+          <input type="range" id="ctrl-font-size" min="6" max="24" step="1" value="12">
+          <span class="val" id="val-font-size">12</span>
+        </label>
+
+        <label class="slider-row">
+          <span>jitter</span>
+          <input type="range" id="ctrl-jitter" min="0" max="5" step="1" value="1">
+          <span class="val" id="val-jitter">1</span>
+        </label>
+
+        <label class="slider-row">
+          <span>threshold</span>
+          <input type="range" id="ctrl-threshold" min="0" max="0.5" step="0.01" value="0.15">
+          <span class="val" id="val-threshold">0.15</span>
+        </label>
+
+        <div class="group-label">Слои</div>
+        <div id="layers-row">
+          <button class="toggle active" data-layer="brightness">brightness</button>
+          <button class="toggle active" data-layer="sobel_x">sobel_x</button>
+          <button class="toggle active" data-layer="sobel_y">sobel_y</button>
+          <button class="toggle active" data-layer="diagonal">diagonal</button>
+        </div>
+
+        <div class="group-label">Фон</div>
+        <div id="bg-mode-tabs">
+          <button class="tab active" data-mode="keep">keep</button>
+          <button class="tab" data-mode="soft">soft</button>
+          <button class="tab" data-mode="remove" id="tab-remove">remove</button>
+        </div>
+
+        <div id="soft-controls" class="hidden">
+          <label class="slider-row">
+            <span>opacity</span>
+            <input type="range" id="ctrl-bg-opacity" min="0" max="1" step="0.05" value="0.25">
+            <span class="val" id="val-bg-opacity">0.25</span>
+          </label>
+          <label class="text-row">
+            <span>chars</span>
+            <input type="text" id="ctrl-bg-chars" value=".," maxlength="10">
+          </label>
+        </div>
+
+        <div class="group-label">Профиль</div>
+        <select id="ctrl-profile">
+          <option value="monochrome">monochrome</option>
+        </select>
+      </section>
+
+      <!-- Video-only controls (hidden by default) -->
+      <section class="controls-group hidden" id="video-controls">
+        <div class="group-label accent-video">Видео</div>
+
+        <label class="slider-row">
+          <span>fps</span>
+          <input type="range" id="ctrl-fps" min="1" max="30" step="1" value="10">
+          <span class="val" id="val-fps">10</span>
+        </label>
+
+        <label class="slider-row">
+          <span>workers</span>
+          <input type="range" id="ctrl-workers" min="1" max="16" step="1" value="4">
+          <span class="val" id="val-workers">4</span>
+        </label>
+
+        <label class="text-row">
+          <span>frame-step</span>
+          <input type="number" id="ctrl-frame-step" min="1" placeholder="—">
+        </label>
+
+        <label class="check-row">
+          <input type="checkbox" id="ctrl-preview">
+          <span>preview (1 кадр)</span>
+        </label>
+
+        <label class="check-row">
+          <input type="checkbox" id="ctrl-gif">
+          <span>+ GIF</span>
+        </label>
+
+        <div id="gif-fps-row" class="hidden">
+          <label class="slider-row">
+            <span>gif-fps</span>
+            <input type="range" id="ctrl-gif-fps" min="1" max="30" step="1" value="10">
+            <span class="val" id="val-gif-fps">10</span>
+          </label>
+        </div>
+      </section>
+
+      <!-- Convert button -->
+      <button id="btn-convert" disabled>▶ Конвертировать</button>
+      <div id="error-banner" class="hidden"></div>
+    </aside>
+
+    <!-- RIGHT PANEL -->
+    <main id="result-panel">
+      <div id="result-placeholder">
+        <span>Загрузи файл и нажми «Конвертировать»</span>
+      </div>
+
+      <!-- Image result -->
+      <div id="image-result" class="hidden">
+        <img id="result-img" src="" alt="ASCII result">
+        <div class="result-actions">
+          <span id="result-path-label"></span>
+          <button class="action-btn" id="btn-copy-path">📋 Копировать путь</button>
+          <button class="action-btn" id="btn-open-folder">📁 Открыть папку</button>
+        </div>
+      </div>
+
+      <!-- Video result -->
+      <div id="video-result" class="hidden">
+        <div id="progress-box">
+          <div id="progress-label">Рендеринг...</div>
+          <div id="progress-bar-wrap">
+            <div id="progress-bar"></div>
+          </div>
+          <div id="progress-count"></div>
+        </div>
+        <img id="preview-img" src="" alt="Preview" class="hidden">
+        <div class="result-actions hidden" id="video-actions">
+          <span id="video-path-label"></span>
+          <button class="action-btn" id="btn-save-mp4">💾 MP4</button>
+          <button class="action-btn hidden" id="btn-save-gif">🎞 GIF</button>
+          <button class="action-btn" id="btn-open-folder-video">📁 Открыть папку</button>
+        </div>
+      </div>
+    </main>
+
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>
