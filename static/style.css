@@ -59,11 +59,11 @@ body {
 /* CONTROLS */
 .controls-group { display: flex; flex-direction: column; gap: 6px; }
 .group-label {
-  font-size: 9px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1px;
   color: var(--text-dim);
-  margin-top: 4px;
+  margin-top: 6px;
 }
 .accent-video { color: var(--accent-video); }
 
@@ -71,38 +71,38 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text);
 }
-.slider-row span:first-child { width: 72px; flex-shrink: 0; }
+.slider-row span:first-child { width: 80px; flex-shrink: 0; }
 .slider-row input[type=range] { flex: 1; accent-color: var(--accent); }
 .video-mode .slider-row input[type=range] { accent-color: var(--accent-video); }
-.val { width: 36px; text-align: right; color: var(--accent); font-size: 11px; }
+.val { width: 40px; text-align: right; color: var(--accent); font-size: 13px; }
 .video-mode .val { color: var(--accent-video); }
 
 .text-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: 13px;
 }
-.text-row span { width: 72px; flex-shrink: 0; }
+.text-row span { width: 80px; flex-shrink: 0; }
 .text-row input {
   flex: 1;
   background: #1a1a1a;
   border: 1px solid var(--border);
   border-radius: 4px;
   color: var(--text);
-  padding: 3px 6px;
+  padding: 5px 8px;
   font-family: inherit;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .check-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11px;
+  gap: 8px;
+  font-size: 13px;
   cursor: pointer;
 }
 .check-row input[type=checkbox] { accent-color: var(--accent-video); }
@@ -112,9 +112,9 @@ body {
 .toggle {
   background: #1a1a1a;
   border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 3px 7px;
-  font-size: 10px;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 12px;
   color: var(--text-dim);
   font-family: inherit;
   cursor: pointer;
@@ -128,9 +128,9 @@ body {
 .tab {
   background: #1a1a1a;
   border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 3px 8px;
-  font-size: 10px;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 12px;
   color: var(--text-dim);
   font-family: inherit;
   cursor: pointer;
