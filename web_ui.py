@@ -11,6 +11,7 @@ from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request, send_from_directory
 from PIL import Image
+from werkzeug.utils import secure_filename
 
 from ascii_combinator.bg_mode import BgMode, SoftBgConfig
 from ascii_combinator.compositor import Compositor
@@ -200,7 +201,7 @@ def create_app(testing: bool = False) -> Flask:
             return jsonify({"error": "Выбери хотя бы один слой"}), 400
 
         # Sanitize filename to prevent path traversal
-        safe_name = Path(f.filename).name if f.filename else "upload"
+        safe_name = secure_filename(f.filename or "upload") or "upload"
         stem = Path(safe_name).stem or "upload"
         out_dir = RESULTS_DIR / stem
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -240,6 +241,8 @@ def create_app(testing: bool = False) -> Flask:
             t.start()
             return jsonify({"task_id": task_id, "result_path": result_path})
 
+        return jsonify({"error": "Unknown mode"}), 400
+
     @app.get("/api/progress/<task_id>")
     def api_progress(task_id: str):
         import time
@@ -260,6 +263,12 @@ def create_app(testing: bool = False) -> Flask:
         path = data.get("path", "")
         p = Path(path)
         folder = str(p.parent if p.suffix else path)
+        try:
+            resolved = Path(folder).resolve()
+            if not resolved.is_relative_to(RESULTS_DIR.resolve()):
+                return jsonify({"error": "Path outside results"}), 400
+        except Exception:
+            return jsonify({"error": "Invalid path"}), 400
         system = platform.system()
         if system == "Darwin":
             subprocess.Popen(["open", folder])

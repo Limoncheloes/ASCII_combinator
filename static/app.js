@@ -228,7 +228,7 @@ function startVideoProgress(taskId, resultPath, gifRequested) {
     }
     if (d.done) {
       state.sse.close();
-      showVideoResult(d.result_url, resultPath, gifRequested, d.gif_url);
+      showVideoResult(d.result_url, resultPath, gifRequested, d.gif_url, d.preview_url);
       return;
     }
     const pct = d.total ? Math.round(d.frame / d.total * 100) : 0;
@@ -242,11 +242,11 @@ function startVideoProgress(taskId, resultPath, gifRequested) {
   state.sse.onerror = () => { state.sse.close(); showError("Ошибка соединения SSE"); };
 }
 
-function showVideoResult(mp4Url, resultPath, gifRequested, gifUrl) {
+function showVideoResult(mp4Url, resultPath, gifRequested, gifUrl, previewUrl) {
   document.getElementById("progress-box").classList.add("hidden");
   const previewImg = document.getElementById("preview-img");
-  if (mp4Url) {
-    previewImg.src = mp4Url.replace(".mp4", "_preview.png") + "?t=" + Date.now();
+  if (previewUrl) {
+    previewImg.src = previewUrl + "?t=" + Date.now();
     previewImg.classList.remove("hidden");
   }
   const actions = document.getElementById("video-actions");
