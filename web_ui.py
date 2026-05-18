@@ -141,7 +141,17 @@ def create_app(testing: bool = False) -> Flask:
 
     @app.post("/api/open-folder")
     def api_open_folder():
-        return jsonify({"error": "not implemented"}), 501
+        data = request.get_json(silent=True) or {}
+        path = data.get("path", "")
+        folder = str(Path(path).parent if Path(path).is_file() else path)
+        system = platform.system()
+        if system == "Darwin":
+            subprocess.Popen(["open", folder])
+        elif system == "Windows":
+            subprocess.Popen(["explorer", folder])
+        else:
+            subprocess.Popen(["xdg-open", folder])
+        return jsonify({"ok": True})
 
     return app
 

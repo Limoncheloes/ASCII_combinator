@@ -1,12 +1,13 @@
 import io
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 import pytest
 from PIL import Image
 
-from web_ui import create_app
+from web_ui import create_app, RESULTS_DIR
 
 
 @pytest.fixture
@@ -79,3 +80,28 @@ def test_convert_image_no_layers_returns_400(client):
     }
     resp = client.post("/api/convert", data=data, content_type="multipart/form-data")
     assert resp.status_code == 400
+
+
+def test_open_folder_calls_platform_command(client):
+    with patch("subprocess.Popen") as mock_popen:
+        resp = client.post(
+            "/api/open-folder",
+            data=json.dumps({"path": "/tmp/results/horse/result.png"}),
+            content_type="application/json",
+        )
+    assert resp.status_code == 200
+    mock_popen.assert_called_once()
+
+
+def test_serve_result_existing_file(client, tmp_path):
+    # Create a test PNG in results dir
+    stem_dir = RESULTS_DIR / "_test_serve"
+    stem_dir.mkdir(parents=True, exist_ok=True)
+    test_file = stem_dir / "result.png"
+    Image.new("RGB", (10, 10)).save(test_file)
+
+    resp = client.get("/results/_test_serve/result.png")
+    assert resp.status_code == 200
+    assert resp.content_type.startswith("image/")
+    test_file.unlink()
+    stem_dir.rmdir()
