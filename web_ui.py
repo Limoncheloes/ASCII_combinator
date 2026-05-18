@@ -166,7 +166,7 @@ def _run_video_task(
             })
 
     except Exception as e:
-        _progress[task_id] = {"done": True, "error": str(e)}
+        _progress[task_id].update({"done": True, "error": str(e)})
 
 
 def create_app(testing: bool = False) -> Flask:
