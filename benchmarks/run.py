@@ -75,11 +75,20 @@ def run_image_scenario(
             image = Image.open(img_path).copy()  # decode now, not lazily
 
         num_rows, num_cols = _grid_dims(image, scen.out_width, scen.font_size)
+        from ascii_combinator.layers.base import LayerInputs
+        with stage(f"{scen.id}.layer.inputs.build", registry=reg):
+            layer_inputs = LayerInputs.from_image(image)
+            # Touch lazy properties so the build cost lands here, not in the first layer
+            _ = layer_inputs.gray
+            _ = layer_inputs.sobel_x
+            _ = layer_inputs.sobel_y
         layers = [LAYER_REGISTRY[n](threshold=scen.threshold) for n in scen.layers]
         charmap_list = []
         for layer in layers:
             with stage(f"{scen.id}.layer.{layer.id}.process", registry=reg):
-                charmap_list.append(layer.process(image, num_rows, num_cols))
+                charmap_list.append(
+                    layer.process(image, num_rows, num_cols, inputs=layer_inputs)
+                )
 
         with stage(f"{scen.id}.compositor.composite", registry=reg):
             charmap = Compositor().composite(
@@ -151,11 +160,19 @@ def run_video_scenario(
 
         for frame_in in frames_in:
             with Image.open(frame_in) as image:
+                from ascii_combinator.layers.base import LayerInputs
                 num_rows, num_cols = _grid_dims(image, scen.out_width, scen.font_size)
+                with stage(f"{scen.id}.frame.layer.inputs.build", registry=reg):
+                    layer_inputs = LayerInputs.from_image(image)
+                    _ = layer_inputs.gray
+                    _ = layer_inputs.sobel_x
+                    _ = layer_inputs.sobel_y
                 charmap_list = []
                 for layer in layers:
                     with stage(f"{scen.id}.frame.layer.{layer.id}", registry=reg):
-                        charmap_list.append(layer.process(image, num_rows, num_cols))
+                        charmap_list.append(
+                            layer.process(image, num_rows, num_cols, inputs=layer_inputs)
+                        )
                 with stage(f"{scen.id}.frame.compositor", registry=reg):
                     charmap = Compositor().composite(
                         charmap_list, mask=None, bg_mode=BgMode.KEEP, soft_cfg=None,
