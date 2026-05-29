@@ -59,3 +59,24 @@ def test_brightness_layer_does_not_recompute_when_given_inputs():
     cached_id = id(inputs._gray)
     BrightnessLayer().process(img, num_rows=4, num_cols=4, inputs=inputs)
     assert id(inputs._gray) == cached_id, "Layer must reuse the cached gray, not recompute"
+
+
+from ascii_combinator.layers.sobel_x import SobelXLayer
+
+
+def test_sobel_x_layer_with_and_without_inputs_match():
+    img = _img(32, 32)
+    layer = SobelXLayer(threshold=0.05)
+    without = layer.process(img, num_rows=4, num_cols=4)
+    inputs = LayerInputs.from_image(img)
+    with_ = layer.process(img, num_rows=4, num_cols=4, inputs=inputs)
+    assert without == with_
+
+
+def test_sobel_x_layer_reuses_sobel_x_array():
+    img = _img(32, 32)
+    inputs = LayerInputs.from_image(img)
+    _ = inputs.sobel_x
+    cached_id = id(inputs._sobel_x)
+    SobelXLayer(threshold=0.05).process(img, num_rows=4, num_cols=4, inputs=inputs)
+    assert id(inputs._sobel_x) == cached_id
