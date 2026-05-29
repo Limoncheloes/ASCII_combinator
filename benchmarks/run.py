@@ -62,41 +62,44 @@ def run_image_scenario(
     repeats: int,
     save_visual_as: Path | None = None,
 ) -> tuple[StageRegistry, float]:
+    import statistics
+    import time
+
     reg = StageRegistry()
     img_path = make_synthetic_image(tmpdir, width=scen.image_width, height=scen.image_height)
 
     last_result: Image.Image | None = None
+    totals: list[float] = []
 
     for _ in range(repeats):
-        with stage(f"{scen.id}.total", registry=reg):
-            with stage(f"{scen.id}.image.load", registry=reg):
-                image = Image.open(img_path).copy()  # decode now, not lazily
+        t0 = time.perf_counter()
+        with stage(f"{scen.id}.image.load", registry=reg):
+            image = Image.open(img_path).copy()  # decode now, not lazily
 
-            num_rows, num_cols = _grid_dims(image, scen.out_width, scen.font_size)
-            layers = [LAYER_REGISTRY[n](threshold=scen.threshold) for n in scen.layers]
-            charmap_list = []
-            for layer in layers:
-                with stage(f"{scen.id}.layer.{layer.id}.process", registry=reg):
-                    charmap_list.append(layer.process(image, num_rows, num_cols))
+        num_rows, num_cols = _grid_dims(image, scen.out_width, scen.font_size)
+        layers = [LAYER_REGISTRY[n](threshold=scen.threshold) for n in scen.layers]
+        charmap_list = []
+        for layer in layers:
+            with stage(f"{scen.id}.layer.{layer.id}.process", registry=reg):
+                charmap_list.append(layer.process(image, num_rows, num_cols))
 
-            with stage(f"{scen.id}.compositor.composite", registry=reg):
-                charmap = Compositor().composite(
-                    charmap_list, mask=None, bg_mode=BgMode.KEEP, soft_cfg=None
-                )
+        with stage(f"{scen.id}.compositor.composite", registry=reg):
+            charmap = Compositor().composite(
+                charmap_list, mask=None, bg_mode=BgMode.KEEP, soft_cfg=None
+            )
 
-            with stage(f"{scen.id}.renderer.render", registry=reg):
-                last_result = Renderer().render(
-                    charmap, MonochromeProfile(),
-                    font_size=scen.font_size, jitter=scen.jitter,
-                )
+        with stage(f"{scen.id}.renderer.render", registry=reg):
+            last_result = Renderer().render(
+                charmap, MonochromeProfile(),
+                font_size=scen.font_size, jitter=scen.jitter,
+            )
+        totals.append(time.perf_counter() - t0)
 
     if save_visual_as is not None and last_result is not None:
         save_visual_as.parent.mkdir(parents=True, exist_ok=True)
         last_result.save(save_visual_as)
 
-    import statistics
-    total_median = statistics.median(reg.samples_for(f"{scen.id}.total"))
-    return reg, total_median
+    return reg, statistics.median(totals)
 
 
 def _placeholder_video_runner_will_come_in_task_5() -> None:
@@ -115,9 +118,6 @@ def _print_table(scenario_id: str, summary: dict, total_median: float) -> None:
     print(f"{'stage':<48} {'median_s':>10} {'share_%':>8} {'n':>4}")
     rows = sorted(summary.items(), key=lambda kv: -kv[1]["share_pct"])
     for name, info in rows:
-        # Skip the .total row in the per-stage table — it's already in the header.
-        if name.endswith(".total"):
-            continue
         print(f"{name:<48} {info['median_s']:>10.4f} {info['share_pct']:>7.2f}% {info['count']:>4}")
 
 

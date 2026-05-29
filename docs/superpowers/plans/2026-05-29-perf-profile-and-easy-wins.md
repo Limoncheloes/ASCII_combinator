@@ -677,6 +677,7 @@ def run_video_scenario(
     import statistics
     import shutil
     import subprocess as sp
+    import time
 
     reg = StageRegistry()
     video_path = make_synthetic_video(
@@ -687,64 +688,66 @@ def run_video_scenario(
         fps=scen.source_fps,
     )
 
+    totals: list[float] = []
+
     for _ in range(repeats):
-        with stage(f"{scen.id}.total", registry=reg):
-            frames_dir = tmpdir / f"frames_{scen.id}"
-            if frames_dir.exists():
-                shutil.rmtree(frames_dir)
-            frames_dir.mkdir(parents=True)
+        t0 = time.perf_counter()
+        frames_dir = tmpdir / f"frames_{scen.id}"
+        if frames_dir.exists():
+            shutil.rmtree(frames_dir)
+        frames_dir.mkdir(parents=True)
 
-            with stage(f"{scen.id}.video.ffmpeg.extract", registry=reg):
-                cmd = [
-                    "ffmpeg", "-y", "-i", str(video_path),
-                    "-vf", f"fps={scen.out_fps}",
-                    str(frames_dir / "frame_%06d.png"),
-                ]
-                r = sp.run(cmd, capture_output=True, text=True)
-                if r.returncode != 0:
-                    raise RuntimeError(f"ffmpeg extract failed: {r.stderr}")
+        with stage(f"{scen.id}.video.ffmpeg.extract", registry=reg):
+            cmd = [
+                "ffmpeg", "-y", "-i", str(video_path),
+                "-vf", f"fps={scen.out_fps}",
+                str(frames_dir / "frame_%06d.png"),
+            ]
+            r = sp.run(cmd, capture_output=True, text=True)
+            if r.returncode != 0:
+                raise RuntimeError(f"ffmpeg extract failed: {r.stderr}")
 
-            frames_in = sorted(frames_dir.glob("frame_*.png"))
-            out_dir = tmpdir / f"out_{scen.id}"
-            if out_dir.exists():
-                shutil.rmtree(out_dir)
-            out_dir.mkdir()
+        frames_in = sorted(frames_dir.glob("frame_*.png"))
+        out_dir = tmpdir / f"out_{scen.id}"
+        if out_dir.exists():
+            shutil.rmtree(out_dir)
+        out_dir.mkdir()
 
-            layers = [LAYER_REGISTRY[n](threshold=scen.threshold) for n in scen.layers]
+        layers = [LAYER_REGISTRY[n](threshold=scen.threshold) for n in scen.layers]
 
-            for frame_in in frames_in:
-                image = Image.open(frame_in)
-                num_rows, num_cols = _grid_dims(image, scen.out_width, scen.font_size)
-                charmap_list = []
-                for layer in layers:
-                    with stage(f"{scen.id}.frame.layer.{layer.id}", registry=reg):
-                        charmap_list.append(layer.process(image, num_rows, num_cols))
-                with stage(f"{scen.id}.frame.compositor", registry=reg):
-                    charmap = Compositor().composite(
-                        charmap_list, mask=None, bg_mode=BgMode.KEEP, soft_cfg=None,
-                    )
-                with stage(f"{scen.id}.frame.renderer", registry=reg):
-                    rendered = Renderer().render(
-                        charmap, MonochromeProfile(),
-                        font_size=scen.font_size, jitter=scen.jitter,
-                    )
-                rendered.save(out_dir / frame_in.name)
+        for frame_in in frames_in:
+            image = Image.open(frame_in)
+            num_rows, num_cols = _grid_dims(image, scen.out_width, scen.font_size)
+            charmap_list = []
+            for layer in layers:
+                with stage(f"{scen.id}.frame.layer.{layer.id}", registry=reg):
+                    charmap_list.append(layer.process(image, num_rows, num_cols))
+            with stage(f"{scen.id}.frame.compositor", registry=reg):
+                charmap = Compositor().composite(
+                    charmap_list, mask=None, bg_mode=BgMode.KEEP, soft_cfg=None,
+                )
+            with stage(f"{scen.id}.frame.renderer", registry=reg):
+                rendered = Renderer().render(
+                    charmap, MonochromeProfile(),
+                    font_size=scen.font_size, jitter=scen.jitter,
+                )
+            rendered.save(out_dir / frame_in.name)
 
-            with stage(f"{scen.id}.video.ffmpeg.assemble_mp4", registry=reg):
-                out_mp4 = tmpdir / f"{scen.id}_result.mp4"
-                cmd = [
-                    "ffmpeg", "-y",
-                    "-framerate", str(scen.out_fps),
-                    "-i", str(out_dir / "frame_%06d.png"),
-                    "-c:v", "libx264", "-pix_fmt", "yuv420p",
-                    str(out_mp4),
-                ]
-                r = sp.run(cmd, capture_output=True, text=True)
-                if r.returncode != 0:
-                    raise RuntimeError(f"ffmpeg assemble failed: {r.stderr}")
+        with stage(f"{scen.id}.video.ffmpeg.assemble_mp4", registry=reg):
+            out_mp4 = tmpdir / f"{scen.id}_result.mp4"
+            cmd = [
+                "ffmpeg", "-y",
+                "-framerate", str(scen.out_fps),
+                "-i", str(out_dir / "frame_%06d.png"),
+                "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                str(out_mp4),
+            ]
+            r = sp.run(cmd, capture_output=True, text=True)
+            if r.returncode != 0:
+                raise RuntimeError(f"ffmpeg assemble failed: {r.stderr}")
+        totals.append(time.perf_counter() - t0)
 
-    total_median = statistics.median(reg.samples_for(f"{scen.id}.total"))
-    return reg, total_median
+    return reg, statistics.median(totals)
 ```
 
 - [ ] **Step 2: Smoke-run with S3 only, repeats=1**
