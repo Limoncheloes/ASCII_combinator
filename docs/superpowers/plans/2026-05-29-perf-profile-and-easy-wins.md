@@ -1626,6 +1626,18 @@ Look at the new top-3 stages by `share_pct` for S1 and S2 (skipping `.total`). D
 
 Document the decision in a one-paragraph note appended to the commit message in Step 4 (something like "post-Win2 top stages: renderer.render (61%), compositor (12%), layer.brightness (8%) — Win 3 skipped; next perf spec should target renderer glyph cache").
 
+### Outcome (filled in after execution)
+
+Win 3 was SKIPPED.
+
+Rationale: although `diagonal.process` and the Sobel layer process methods met the share-% and time thresholds in the after-baseline, profiling showed the dominant cost inside those methods is the numpy work (`np.hypot`, `np.arctan2`, three `_to_cell_grid` reshape/mean passes), not the Python `for r/c` loop. Vectorizing the loop would save ~30–50 ms per scenario at the cost of new code paths and a small bit-equivalence risk. The remaining wall-time budget is concentrated in `renderer.render` (37% on s1, 60% on s3) and `layer.inputs.build` (the fundamental cost of grayscale + Sobel), neither of which is in Task 15's scope. Deferring perf work to a separate spec targeting the renderer (glyph pre-rasterization) is expected to return a much larger improvement than Win 3 would.
+
+Final perf delta (Win 1 + Win 2 applied, Win 3 skipped):
+- s1: 2.72 s → 2.07 s (−24.0 %)
+- s2: 2.26 s → 1.69 s (−25.2 %)
+- s3: 54.4 s → 49.1 s (−9.7 %)
+- Visual smoke: bit-identical (max pixel diff = 0).
+
 - [ ] **Step 4: Commit**
 
 ```bash
