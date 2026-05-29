@@ -78,10 +78,12 @@ def make_synthetic_video(
             frame[max(band_y - 20, 0):band_y + 20] = np.clip(
                 frame[max(band_y - 20, 0):band_y + 20].astype(np.int16) + 60, 0, 255
             ).astype(np.uint8)
-            proc.stdin.write(frame.tobytes())
+            try:
+                proc.stdin.write(frame.tobytes())
+            except BrokenPipeError:
+                break
+    finally:
         proc.stdin.close()
-    except BrokenPipeError:
-        pass
     rc = proc.wait()
     if rc != 0:
         raise RuntimeError(f"ffmpeg returned {rc} while encoding synthetic video")
