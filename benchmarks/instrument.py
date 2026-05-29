@@ -26,20 +26,26 @@ class StageRegistry:
         return list(self._samples.get(name, []))
 
     def summary(self) -> dict[str, dict[str, float]]:
-        """Return per-stage median seconds and share-% of total median time."""
-        medians = {
-            name: statistics.median(samples)
+        """Return per-stage median seconds and share-% of total sample time.
+
+        share_pct is computed against sum-of-all-samples (not sum-of-medians) so
+        that stages invoked many times per iteration get credit proportional to
+        their wall-clock contribution.
+        """
+        non_empty = {
+            name: samples
             for name, samples in self._samples.items()
             if samples
         }
-        total = sum(medians.values()) or 1.0
+        totals = {name: sum(samples) for name, samples in non_empty.items()}
+        grand_total = sum(totals.values()) or 1.0
         return {
             name: {
-                "median_s": round(med, 6),
-                "share_pct": round(100.0 * med / total, 2),
-                "count": len(self._samples[name]),
+                "median_s": round(statistics.median(samples), 6),
+                "share_pct": round(100.0 * totals[name] / grand_total, 2),
+                "count": len(samples),
             }
-            for name, med in medians.items()
+            for name, samples in non_empty.items()
         }
 
 
