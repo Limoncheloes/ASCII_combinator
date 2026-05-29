@@ -101,3 +101,27 @@ def test_sobel_y_layer_reuses_sobel_y_array():
     cached_id = id(inputs._sobel_y)
     SobelYLayer(threshold=0.05).process(img, num_rows=4, num_cols=4, inputs=inputs)
     assert id(inputs._sobel_y) == cached_id
+
+
+from ascii_combinator.layers.diagonal import DiagonalLayer
+
+
+def test_diagonal_layer_with_and_without_inputs_match():
+    img = _img(32, 32)
+    layer = DiagonalLayer(threshold=0.05)
+    without = layer.process(img, num_rows=4, num_cols=4)
+    inputs = LayerInputs.from_image(img)
+    with_ = layer.process(img, num_rows=4, num_cols=4, inputs=inputs)
+    assert without == with_
+
+
+def test_diagonal_layer_reuses_both_sobel_arrays():
+    img = _img(32, 32)
+    inputs = LayerInputs.from_image(img)
+    _ = inputs.sobel_x
+    _ = inputs.sobel_y
+    cached_sx = id(inputs._sobel_x)
+    cached_sy = id(inputs._sobel_y)
+    DiagonalLayer(threshold=0.05).process(img, num_rows=4, num_cols=4, inputs=inputs)
+    assert id(inputs._sobel_x) == cached_sx
+    assert id(inputs._sobel_y) == cached_sy
