@@ -34,7 +34,7 @@ from ascii_combinator.layers.sobel_y import SobelYLayer
 from ascii_combinator.profiles.monochrome import MonochromeProfile
 from ascii_combinator.renderer import Renderer
 
-from benchmarks.fixtures import make_synthetic_image
+from benchmarks.fixtures import make_synthetic_image, make_synthetic_video
 from benchmarks.instrument import StageRegistry, stage
 from benchmarks.scenarios import ALL_IMAGE, ALL_VIDEO, ImageScenario, VideoScenario, S2
 
@@ -100,13 +100,89 @@ def run_image_scenario(
     return reg, statistics.median(totals)
 
 
-def _placeholder_video_runner_will_come_in_task_5() -> None:
-    """See Task 5 for the implementation. Calling this before Task 5 is a bug."""
-    raise NotImplementedError("video runner not implemented yet — see Task 5")
+def run_video_scenario(
+    scen: VideoScenario,
+    tmpdir: Path,
+    repeats: int,
+) -> tuple[StageRegistry, float]:
+    """Time per-frame stages by running the video flow synchronously (no parallelism).
 
+    Parallel video processing (`VideoProcessor`) hides per-stage timing because frames
+    run in subprocesses. Here we deliberately use the synchronous path: extract frames
+    via ffmpeg, then process each frame inline with stage() around each call.
+    """
+    import shutil
+    import subprocess as sp
 
-def run_video_scenario(scen: VideoScenario, tmpdir: Path, repeats: int):
-    return _placeholder_video_runner_will_come_in_task_5()
+    reg = StageRegistry()
+    video_path = make_synthetic_video(
+        tmpdir,
+        width=scen.video_width,
+        height=scen.video_height,
+        duration_s=scen.duration_s,
+        fps=scen.source_fps,
+    )
+
+    totals: list[float] = []
+
+    for _ in range(repeats):
+        t0 = time.perf_counter()
+        frames_dir = tmpdir / f"frames_{scen.id}"
+        if frames_dir.exists():
+            shutil.rmtree(frames_dir)
+        frames_dir.mkdir(parents=True)
+
+        with stage(f"{scen.id}.video.ffmpeg.extract", registry=reg):
+            cmd = [
+                "ffmpeg", "-y", "-i", str(video_path),
+                "-vf", f"fps={scen.out_fps}",
+                str(frames_dir / "frame_%06d.png"),
+            ]
+            r = sp.run(cmd, capture_output=True, text=True)
+            if r.returncode != 0:
+                raise RuntimeError(f"ffmpeg extract failed: {r.stderr}")
+
+        frames_in = sorted(frames_dir.glob("frame_*.png"))
+        out_dir = tmpdir / f"out_{scen.id}"
+        if out_dir.exists():
+            shutil.rmtree(out_dir)
+        out_dir.mkdir()
+
+        layers = [LAYER_REGISTRY[n](threshold=scen.threshold) for n in scen.layers]
+
+        for frame_in in frames_in:
+            image = Image.open(frame_in)
+            num_rows, num_cols = _grid_dims(image, scen.out_width, scen.font_size)
+            charmap_list = []
+            for layer in layers:
+                with stage(f"{scen.id}.frame.layer.{layer.id}", registry=reg):
+                    charmap_list.append(layer.process(image, num_rows, num_cols))
+            with stage(f"{scen.id}.frame.compositor", registry=reg):
+                charmap = Compositor().composite(
+                    charmap_list, mask=None, bg_mode=BgMode.KEEP, soft_cfg=None,
+                )
+            with stage(f"{scen.id}.frame.renderer", registry=reg):
+                rendered = Renderer().render(
+                    charmap, MonochromeProfile(),
+                    font_size=scen.font_size, jitter=scen.jitter,
+                )
+            rendered.save(out_dir / frame_in.name)
+
+        with stage(f"{scen.id}.video.ffmpeg.assemble_mp4", registry=reg):
+            out_mp4 = tmpdir / f"{scen.id}_result.mp4"
+            cmd = [
+                "ffmpeg", "-y",
+                "-framerate", str(scen.out_fps),
+                "-i", str(out_dir / "frame_%06d.png"),
+                "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                str(out_mp4),
+            ]
+            r = sp.run(cmd, capture_output=True, text=True)
+            if r.returncode != 0:
+                raise RuntimeError(f"ffmpeg assemble failed: {r.stderr}")
+        totals.append(time.perf_counter() - t0)
+
+    return reg, statistics.median(totals)
 
 
 # --- CLI scaffold (extended in Task 6) ---
