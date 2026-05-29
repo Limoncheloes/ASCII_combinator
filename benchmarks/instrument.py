@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 
 @dataclass
 class StageRegistry:
-    _samples: dict[str, list[float]] = field(
+    _samples: defaultdict[str, list[float]] = field(
         default_factory=lambda: defaultdict(list)
     )
 
