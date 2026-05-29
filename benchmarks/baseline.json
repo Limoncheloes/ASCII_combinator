@@ -1,0 +1,150 @@
+{
+  "host": {
+    "cpu_count": 8,
+    "python": "3.12.3",
+    "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.39"
+  },
+  "git_sha": "ec117eada09c5962673e4bbb6ff7e9d1b1cc489f",
+  "scenarios": {
+    "s3": {
+      "total_median_s": 49.139694,
+      "stages": {
+        "s3.video.ffmpeg.extract": {
+          "median_s": 5.724566,
+          "share_pct": 12.25,
+          "count": 3
+        },
+        "s3.frame.layer.inputs.build": {
+          "median_s": 0.049971,
+          "share_pct": 10.78,
+          "count": 300
+        },
+        "s3.frame.layer.brightness": {
+          "median_s": 0.004272,
+          "share_pct": 0.93,
+          "count": 300
+        },
+        "s3.frame.layer.sobel_x": {
+          "median_s": 0.010468,
+          "share_pct": 2.62,
+          "count": 300
+        },
+        "s3.frame.layer.sobel_y": {
+          "median_s": 0.010139,
+          "share_pct": 2.23,
+          "count": 300
+        },
+        "s3.frame.layer.diagonal": {
+          "median_s": 0.029505,
+          "share_pct": 6.46,
+          "count": 300
+        },
+        "s3.frame.compositor": {
+          "median_s": 0.001806,
+          "share_pct": 0.77,
+          "count": 300
+        },
+        "s3.frame.renderer": {
+          "median_s": 0.278215,
+          "share_pct": 60.11,
+          "count": 300
+        },
+        "s3.video.ffmpeg.assemble_mp4": {
+          "median_s": 1.782629,
+          "share_pct": 3.84,
+          "count": 3
+        }
+      }
+    },
+    "s2": {
+      "total_median_s": 1.692132,
+      "stages": {
+        "s2.image.load": {
+          "median_s": 0.283773,
+          "share_pct": 17.03,
+          "count": 3
+        },
+        "s2.layer.inputs.build": {
+          "median_s": 0.472204,
+          "share_pct": 27.82,
+          "count": 3
+        },
+        "s2.layer.brightness.process": {
+          "median_s": 0.012457,
+          "share_pct": 0.75,
+          "count": 3
+        },
+        "s2.layer.sobel_x.process": {
+          "median_s": 0.097271,
+          "share_pct": 6.05,
+          "count": 3
+        },
+        "s2.layer.sobel_y.process": {
+          "median_s": 0.097972,
+          "share_pct": 5.8,
+          "count": 3
+        },
+        "s2.layer.diagonal.process": {
+          "median_s": 0.322022,
+          "share_pct": 18.94,
+          "count": 3
+        },
+        "s2.compositor.composite": {
+          "median_s": 0.002553,
+          "share_pct": 0.14,
+          "count": 3
+        },
+        "s2.renderer.render": {
+          "median_s": 0.395233,
+          "share_pct": 23.45,
+          "count": 3
+        }
+      }
+    },
+    "s1": {
+      "total_median_s": 2.067794,
+      "stages": {
+        "s1.image.load": {
+          "median_s": 0.283384,
+          "share_pct": 13.58,
+          "count": 3
+        },
+        "s1.layer.inputs.build": {
+          "median_s": 0.456237,
+          "share_pct": 22.21,
+          "count": 3
+        },
+        "s1.layer.brightness.process": {
+          "median_s": 0.016948,
+          "share_pct": 0.82,
+          "count": 3
+        },
+        "s1.layer.sobel_x.process": {
+          "median_s": 0.100108,
+          "share_pct": 4.81,
+          "count": 3
+        },
+        "s1.layer.sobel_y.process": {
+          "median_s": 0.099437,
+          "share_pct": 5.03,
+          "count": 3
+        },
+        "s1.layer.diagonal.process": {
+          "median_s": 0.330725,
+          "share_pct": 16.01,
+          "count": 3
+        },
+        "s1.compositor.composite": {
+          "median_s": 0.003574,
+          "share_pct": 0.17,
+          "count": 3
+        },
+        "s1.renderer.render": {
+          "median_s": 0.771237,
+          "share_pct": 37.36,
+          "count": 3
+        }
+      }
+    }
+  }
+}

@@ -103,8 +103,13 @@ def _run_image(args: argparse.Namespace, parser: argparse.ArgumentParser) -> Non
     else:
         mask = None
 
+    from ascii_combinator.layers.base import LayerInputs
+    layer_inputs = LayerInputs.from_image(image)
     layers = [LAYER_REGISTRY[n](threshold=args.threshold) for n in layer_names]
-    charmap_list = [layer.process(image, num_rows, num_cols) for layer in layers]
+    charmap_list = [
+        layer.process(image, num_rows, num_cols, inputs=layer_inputs)
+        for layer in layers
+    ]
     charmap = Compositor().composite(charmap_list, mask=mask, bg_mode=bg_mode, soft_cfg=soft_cfg)
 
     profile = PROFILE_REGISTRY[args.profile]()

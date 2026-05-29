@@ -1,9 +1,11 @@
 import random
+from functools import lru_cache
 from PIL import Image, ImageDraw, ImageFont
 from ascii_combinator.types import CharMap
 from ascii_combinator.profiles.base import ColorProfile
 
 
+@lru_cache(maxsize=16)
 def _find_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     candidates = [
         "DejaVuSansMono.ttf",

@@ -59,8 +59,13 @@ def _convert_image(image: Image.Image, params: dict) -> Image.Image:
 
     layer_names = params.get("layers", list(_LAYER_REGISTRY))
     threshold = params.get("threshold", 0.15)
+    from ascii_combinator.layers.base import LayerInputs
+    layer_inputs = LayerInputs.from_image(image)
     layers = [_LAYER_REGISTRY[n](threshold=threshold) for n in layer_names if n in _LAYER_REGISTRY]
-    charmap_list = [layer.process(image, num_rows, num_cols) for layer in layers]
+    charmap_list = [
+        layer.process(image, num_rows, num_cols, inputs=layer_inputs)
+        for layer in layers
+    ]
 
     bg_mode = BgMode(params.get("bg_mode", "keep"))
     soft_cfg = (

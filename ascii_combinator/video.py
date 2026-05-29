@@ -52,8 +52,13 @@ class FrameProcessor:
         num_cols = config.width if config.width is not None else max(image.width // cell_w, 10)
         num_rows = max(1, int(num_cols * cell_w / cell_h * image.height / image.width))
 
+        from ascii_combinator.layers.base import LayerInputs
+        layer_inputs = LayerInputs.from_image(image)
         layers = [_LAYER_REGISTRY[n](threshold=config.threshold) for n in config.layer_names]
-        charmap_list = [layer.process(image, num_rows, num_cols) for layer in layers]
+        charmap_list = [
+            layer.process(image, num_rows, num_cols, inputs=layer_inputs)
+            for layer in layers
+        ]
         charmap = Compositor().composite(
             charmap_list, mask=None, bg_mode=config.bg_mode, soft_cfg=config.soft_cfg
         )

@@ -1,0 +1,135 @@
+{
+  "host": {
+    "cpu_count": 8,
+    "python": "3.12.3",
+    "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.39"
+  },
+  "git_sha": "8d6e823f87e025c4cc83e40ee8e35e0b25b7043e",
+  "scenarios": {
+    "s3": {
+      "total_median_s": 54.436836,
+      "stages": {
+        "s3.video.ffmpeg.extract": {
+          "median_s": 5.703733,
+          "share_pct": 11.02,
+          "count": 3
+        },
+        "s3.frame.layer.brightness": {
+          "median_s": 0.029709,
+          "share_pct": 7.39,
+          "count": 300
+        },
+        "s3.frame.layer.sobel_x": {
+          "median_s": 0.023514,
+          "share_pct": 4.63,
+          "count": 300
+        },
+        "s3.frame.layer.sobel_y": {
+          "median_s": 0.0266,
+          "share_pct": 6.79,
+          "count": 300
+        },
+        "s3.frame.layer.diagonal": {
+          "median_s": 0.061088,
+          "share_pct": 11.93,
+          "count": 300
+        },
+        "s3.frame.compositor": {
+          "median_s": 0.001842,
+          "share_pct": 0.37,
+          "count": 300
+        },
+        "s3.frame.renderer": {
+          "median_s": 0.278957,
+          "share_pct": 54.43,
+          "count": 300
+        },
+        "s3.video.ffmpeg.assemble_mp4": {
+          "median_s": 1.775529,
+          "share_pct": 3.45,
+          "count": 3
+        }
+      }
+    },
+    "s2": {
+      "total_median_s": 2.263308,
+      "stages": {
+        "s2.image.load": {
+          "median_s": 0.27461,
+          "share_pct": 12.1,
+          "count": 3
+        },
+        "s2.layer.brightness.process": {
+          "median_s": 0.069898,
+          "share_pct": 3.06,
+          "count": 3
+        },
+        "s2.layer.sobel_x.process": {
+          "median_s": 0.353486,
+          "share_pct": 15.2,
+          "count": 3
+        },
+        "s2.layer.sobel_y.process": {
+          "median_s": 0.375047,
+          "share_pct": 15.94,
+          "count": 3
+        },
+        "s2.layer.diagonal.process": {
+          "median_s": 0.798261,
+          "share_pct": 35.29,
+          "count": 3
+        },
+        "s2.compositor.composite": {
+          "median_s": 0.002621,
+          "share_pct": 1.04,
+          "count": 3
+        },
+        "s2.renderer.render": {
+          "median_s": 0.394008,
+          "share_pct": 17.38,
+          "count": 3
+        }
+      }
+    },
+    "s1": {
+      "total_median_s": 2.718901,
+      "stages": {
+        "s1.image.load": {
+          "median_s": 0.277653,
+          "share_pct": 10.48,
+          "count": 3
+        },
+        "s1.layer.brightness.process": {
+          "median_s": 0.077323,
+          "share_pct": 3.5,
+          "count": 3
+        },
+        "s1.layer.sobel_x.process": {
+          "median_s": 0.353293,
+          "share_pct": 12.67,
+          "count": 3
+        },
+        "s1.layer.sobel_y.process": {
+          "median_s": 0.380542,
+          "share_pct": 13.67,
+          "count": 3
+        },
+        "s1.layer.diagonal.process": {
+          "median_s": 0.804585,
+          "share_pct": 30.31,
+          "count": 3
+        },
+        "s1.compositor.composite": {
+          "median_s": 0.004115,
+          "share_pct": 0.14,
+          "count": 3
+        },
+        "s1.renderer.render": {
+          "median_s": 0.776482,
+          "share_pct": 29.23,
+          "count": 3
+        }
+      }
+    }
+  }
+}
