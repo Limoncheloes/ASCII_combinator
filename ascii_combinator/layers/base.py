@@ -20,9 +20,9 @@ class LayerInputs:
     when multiple layers run together.
     """
     image: Image.Image
-    _gray: Optional[np.ndarray] = field(default=None, repr=False)
-    _sobel_x: Optional[np.ndarray] = field(default=None, repr=False)
-    _sobel_y: Optional[np.ndarray] = field(default=None, repr=False)
+    _gray: Optional[np.ndarray] = field(default=None, repr=False, init=False)
+    _sobel_x: Optional[np.ndarray] = field(default=None, repr=False, init=False)
+    _sobel_y: Optional[np.ndarray] = field(default=None, repr=False, init=False)
 
     @classmethod
     def from_image(cls, image: Image.Image) -> "LayerInputs":
