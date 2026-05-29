@@ -80,3 +80,24 @@ def test_sobel_x_layer_reuses_sobel_x_array():
     cached_id = id(inputs._sobel_x)
     SobelXLayer(threshold=0.05).process(img, num_rows=4, num_cols=4, inputs=inputs)
     assert id(inputs._sobel_x) == cached_id
+
+
+from ascii_combinator.layers.sobel_y import SobelYLayer
+
+
+def test_sobel_y_layer_with_and_without_inputs_match():
+    img = _img(32, 32)
+    layer = SobelYLayer(threshold=0.05)
+    without = layer.process(img, num_rows=4, num_cols=4)
+    inputs = LayerInputs.from_image(img)
+    with_ = layer.process(img, num_rows=4, num_cols=4, inputs=inputs)
+    assert without == with_
+
+
+def test_sobel_y_layer_reuses_sobel_y_array():
+    img = _img(32, 32)
+    inputs = LayerInputs.from_image(img)
+    _ = inputs.sobel_y
+    cached_id = id(inputs._sobel_y)
+    SobelYLayer(threshold=0.05).process(img, num_rows=4, num_cols=4, inputs=inputs)
+    assert id(inputs._sobel_y) == cached_id

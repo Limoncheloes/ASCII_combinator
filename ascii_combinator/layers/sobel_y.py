@@ -2,15 +2,25 @@ import numpy as np
 from scipy.ndimage import sobel
 from PIL import Image
 from ascii_combinator.types import CharCell, CharMap
-from ascii_combinator.layers.base import Layer, _to_cell_grid
+from ascii_combinator.layers.base import Layer, LayerInputs, _to_cell_grid
 
 
 class SobelYLayer(Layer):
     id = "sobel_y"
 
-    def process(self, image: Image.Image, num_rows: int, num_cols: int) -> CharMap:
-        gray = np.array(image.convert("L"), dtype=float) / 255.0
-        edges = np.abs(sobel(gray, axis=0))  # axis=0 → detects horizontal edges
+    def process(
+        self,
+        image: Image.Image,
+        num_rows: int,
+        num_cols: int,
+        inputs: LayerInputs | None = None,
+    ) -> CharMap:
+        if inputs is not None:
+            sy = inputs.sobel_y
+        else:
+            gray = np.array(image.convert("L"), dtype=float) / 255.0
+            sy = sobel(gray, axis=0)
+        edges = np.abs(sy)
         norm = edges.max()
         if norm > 0:
             edges = edges / norm
