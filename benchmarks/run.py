@@ -16,10 +16,11 @@ import argparse
 import json
 import os
 import platform
+import statistics
 import subprocess
 import sys
 import tempfile
-from dataclasses import asdict
+import time
 from pathlib import Path
 
 from PIL import Image
@@ -33,9 +34,9 @@ from ascii_combinator.layers.sobel_y import SobelYLayer
 from ascii_combinator.profiles.monochrome import MonochromeProfile
 from ascii_combinator.renderer import Renderer
 
-from benchmarks.fixtures import make_synthetic_image, make_synthetic_video
+from benchmarks.fixtures import make_synthetic_image
 from benchmarks.instrument import StageRegistry, stage
-from benchmarks.scenarios import ALL_IMAGE, ALL_VIDEO, ImageScenario, VideoScenario, S1, S2, S3
+from benchmarks.scenarios import ALL_IMAGE, ALL_VIDEO, ImageScenario, VideoScenario, S2
 
 LAYER_REGISTRY = {
     "brightness": BrightnessLayer,
@@ -62,9 +63,6 @@ def run_image_scenario(
     repeats: int,
     save_visual_as: Path | None = None,
 ) -> tuple[StageRegistry, float]:
-    import statistics
-    import time
-
     reg = StageRegistry()
     img_path = make_synthetic_image(tmpdir, width=scen.image_width, height=scen.image_height)
 
